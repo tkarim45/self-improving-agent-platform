@@ -91,7 +91,7 @@ self-improving-agent-platform/
 ## Quickstart (once Milestone 0 is done)
 
 ```bash
-# 1. Env (personal conda env — never base; see ~/.claude/CLAUDE.md)
+# 1. Env (personal conda env, never base; see ~/.claude/CLAUDE.md)
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate personal
 pip install -r requirements.txt
 
