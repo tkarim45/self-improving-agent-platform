@@ -12,6 +12,7 @@ networkx>=3.3
 
 # Agent / models (Milestone 2+)
 anthropic[bedrock]>=0.40
+duckdb>=1.5          # the run_sql tool's sandboxed scratch database
 
 # Serving (Milestone 3+)
 fastapi>=0.115

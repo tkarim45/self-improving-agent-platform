@@ -53,7 +53,9 @@ def _chunk_from_json(d: dict) -> Chunk:
 
 
 class HybridIndex:
-    def __init__(self, tenant: str, embedder_name: str = "hashing", root: str | Path = "data/index"):
+    def __init__(
+        self, tenant: str, embedder_name: str = "hashing", root: str | Path = "data/index"
+    ):
         self.tenant = tenant
         self.embedder_name = embedder_name
         self.root = Path(root)

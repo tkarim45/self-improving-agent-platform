@@ -1,0 +1,194 @@
+[
+  {
+    "question": "how do I filter the output of a window function",
+    "answer": "Use the `QUALIFY` clause to filter the output of window functions [403bd30b848d]. Since window functions are executed after `WHERE` and `HAVING` clauses, you cannot use those to filter window function results directly [403bd30b848d].\n\nThe `QUALIFY` clause allows you to filter rows based on window function results without needing a subquery [403bd30b848d]. You can reference the window function in two ways [e187bd92a4de]:\n\n1. Define the window function inline in the `QUALIFY` clause:\n```sql\nSELECT schema_name, function_name,\n       row_number() OVER (PARTITION BY schema_name ORDER BY function_name) AS function_rank\nFROM duckdb_functions()\nQUALIFY row_number() OVER (PARTITION BY schema_name ORDER BY function_name) < 3;\n```\n\n2. Reference a window function column alias from the `SELECT` clause:\n```sql\nSELECT schema_name, function_name,\n       row_number() OVER (PARTITION BY schema_name ORDER BY function_name) AS function_rank\nFROM duckdb_functions()\nQUALIFY function_rank < 3;\n```\n\n[e187bd92a4de] shows that both approaches produce the same output.\n\nAdditionally, if you're using aggregate functions as window functions, you can use the `FILTER` clause on the aggregate itself [f13dac4fe87b].",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "score 0.00 (short factual lookup)",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "search_docs"
+    ],
+    "iterations": 4,
+    "citations": {
+      "cited_ids": [
+        "403bd30b848d",
+        "e187bd92a4de",
+        "f13dac4fe87b"
+      ],
+      "invalid_ids": [],
+      "n_claims": 8,
+      "n_uncited": 2,
+      "citation_rate": 0.75,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 5,
+      "total_usd": 0.018539,
+      "by_tier": {
+        "cheap": 0.018539
+      },
+      "input_tokens": 13689,
+      "output_tokens": 970
+    },
+    "latency_ms": 18007.025166007224,
+    "revised": true
+  },
+  {
+    "question": "what is the syntax for PIVOT",
+    "answer": "DuckDB supports two PIVOT syntaxes: a simplified syntax and a SQL Standard syntax.\n\n**Simplified PIVOT Syntax** [3168db38bb9e]:\n```sql\nPIVOT \u27e8dataset\u27e9 \nON \u27e8columns\u27e9 \nUSING \u27e8values\u27e9 \nGROUP BY \u27e8rows\u27e9 \nORDER BY \u27e8columns_with_order_directions\u27e9 \nLIMIT \u27e8number_of_rows\u27e9;\n```\nThe `ON`, `USING`, and `GROUP BY` clauses are each optional, but they may not all be omitted. [3168db38bb9e] Multiple columns can be specified in the `ON` and `GROUP BY` clauses, and multiple aggregate expressions can be included in the `USING` clause. [2010887cfc99]\n\n**SQL Standard PIVOT Syntax** [00acd81a2d65]:\n```sql\nSELECT * FROM \u27e8dataset\u27e9 \nPIVOT (\n  \u27e8values\u27e9 FOR \u27e8column_1\u27e9 IN (\u27e8in_list\u27e9) \n  \u27e8column_2\u27e9 IN (\u27e8in_list\u27e9) \n  ... \n  GROUP BY \u27e8rows\u27e9\n);\n```\nWith this syntax, the `IN` clause must be specified for each column to be pivoted. [00acd81a2d65] Note that no commas separate the expressions in the `FOR` clause, but that `value` and `GROUP BY` expressions must be comma-separated. [00acd81a2d65]\n\nIf you are interested in dynamic pivoting, the simplified syntax is recommended. [00acd81a2d65]",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "score 0.00 (short factual lookup)",
+    "tools": [
+      "search_docs",
+      "search_docs"
+    ],
+    "iterations": 4,
+    "citations": {
+      "cited_ids": [
+        "3168db38bb9e",
+        "2010887cfc99",
+        "00acd81a2d65"
+      ],
+      "invalid_ids": [],
+      "n_claims": 6,
+      "n_uncited": 1,
+      "citation_rate": 0.8333,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 5,
+      "total_usd": 0.016872,
+      "by_tier": {
+        "cheap": 0.016872
+      },
+      "input_tokens": 11417,
+      "output_tokens": 1091
+    },
+    "latency_ms": 13534.447417012416,
+    "revised": true
+  },
+  {
+    "question": "match each trade to the most recent price recorded before it",
+    "answer": "Use an **`ASOF JOIN`** [fbb21bb05dcd]. This join type is designed specifically for temporal lookups\u2014it matches each row in the left table with the most recent row from the right table where the join condition is satisfied.\n\n**Syntax:**\n```sql\nSELECT *\nFROM trades t\nASOF JOIN prices p \n  ON t.ticker = p.ticker AND t.trade_time >= p.price_time\nORDER BY t.trade_id;\n```\n\nHow it works:\n- The `>=` condition on the timestamp column finds all prices up to and including the trade time\n- `ASOF JOIN` automatically selects the most recent (last) matching row from the right table\n- Group matching columns with `ON column = column` and the timestamp with `ON timestamp >= other_timestamp` [582d573c2edd]\n\nIn the example above, trade 2 at 10:05 gets matched with the price from 10:02 (not the 09:30 price), because 10:02 is the most recent price before the trade time [48def3520c4a].",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "score 0.00 (no difficulty signals)",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "run_sql"
+    ],
+    "iterations": 3,
+    "citations": {
+      "cited_ids": [
+        "fbb21bb05dcd",
+        "582d573c2edd",
+        "48def3520c4a"
+      ],
+      "invalid_ids": [],
+      "n_claims": 5,
+      "n_uncited": 3,
+      "citation_rate": 0.4,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 4,
+      "total_usd": 0.014708,
+      "by_tier": {
+        "cheap": 0.014708
+      },
+      "input_tokens": 10298,
+      "output_tokens": 882
+    },
+    "latency_ms": 11669.666792004136,
+    "revised": false
+  },
+  {
+    "question": "why would a hash join be slower than a merge join here, and what would you check first",
+    "answer": "I already have the relevant passages from the prior searches. Here is the corrected answer with only supported claims:\n\n---\n\n## Why a hash join can be slower than a merge/piecewise-merge join \u2014 and what to check first\n\n### The usual culprits, in order of likelihood\n\n---\n\n### 1. \u2705 Check first: the hash table is spilling to disk\n\nA hash join must materialise the entire **build side** in a hash table in memory before probing begins. If the build side exceeds the available memory budget, DuckDB spills partitions to disk. DuckDB supports out-of-core joins via spill-to-disk, but when that happens, performance can degrade significantly. [3a29a6720761]\n\nMemory requirements depend on both dataset size and query type \u2014 workloads containing large joins over many-to-many tables yield large intermediate datasets and thus require more memory for evaluation to fully fit into memory. [bb7380e551f4]\n\n**What to check:**\n- Run `EXPLAIN ANALYZE` \u2014 the build-side operator will show very high wall-clock time relative to the probe side. [630c82f1a6cc]\n- Check your `memory_limit` setting relative to your dataset size.\n- Confirm that a `temp_directory` is configured so DuckDB has somewhere to spill rather than erroring out.\n\n---\n\n### 2. Wrong build/probe side assignment (bad cardinality estimate)\n\nThe hash join builds a hash table on the **right (build) side** of the join, and probes with the left side. [a0c5462c73fd] DuckDB uses a cost-based optimizer with statistics to decide which side to build on. [6666887762ff] If those statistics are stale or wrong, it may build the hash table on the *larger* side, which is expensive.\n\n**What to check:**\n- Run `EXPLAIN ANALYZE` and compare **EC (estimated cardinality)** vs **actual cardinality** at each operator. [630c82f1a6cc] A large discrepancy is a smoking gun.\n- Run `ANALYZE;` to refresh table statistics \u2014 especially important after bulk inserts or deletes, as the stats used for join ordering can go stale. [56b4911730d5]\n\n---\n\n### 3. Joining on VARCHAR instead of a native integer type\n\nHashing strings is significantly more expensive than hashing fixed-width integers. If the join key is `VARCHAR` (or is being implicitly cast to one), the hash join pays that cost on every row in both the build and probe passes.\n\nThe docs explicitly benchmark this: a self-join on `BIGINT` keys is materially faster than the same join on `VARCHAR` keys, even with identical data. [6a5a7eca8f28]\n\n**What to check:**\n- Inspect column types on both sides of the join condition. If they differ, DuckDB may cast one side.\n- Use `EXPLAIN` to check whether there is a `CAST` in the join condition. [4934960485a0]\n\n---\n\n### 4. Many-to-many join producing large intermediates\n\nJoins over many-to-many tables yield large intermediate datasets, which require more memory to evaluate. [bb7380e551f4] This amplifies the spill-to-disk risk described in point 1.\n\n---\n\n### Diagnostic workflow\n\n```sql\n-- Step 1: look at estimated vs actual cardinalities, and per-operator timing\nEXPLAIN ANALYZE\nSELECT ...\nFROM a JOIN b ON a.id = b.id;\n\n-- Step 2: if stats look stale, refresh them\nANALYZE;\n\n-- Step 3: check/increase memory limit\nSET memory_limit = '16GB';\n\n-- Step 4: to test whether join order/side selection is the issue,\n-- temporarily disable the optimizer\nSET disabled_optimizers = 'join_order,build_side_probe_side';\n-- run your query, then re-enable\nRESET disabled_optimizers;\n```\n[630c82f1a6cc] [56b4911730d5] [6666887762ff] [4934960485a0]\n\n---\n\n### TL;DR priority order\n\n| # | Check | Signal |\n|---|-------|--------|\n| 1 | Spilling to disk? | Build-side operator dominates time in `EXPLAIN ANALYZE` |\n| 2 | Bad cardinality estimate? | EC vs actual cardinality mismatch in `EXPLAIN ANALYZE` |\n| 3 | VARCHAR join key? | `CAST` in the join condition or `VARCHAR`-typed key columns |\n| 4 | Memory budget too low for the dataset? | Large many-to-many join intermediates exceeding `memory_limit` |\n\n> **Note:** The documentation does not describe the specific internal I/O characteristics of DuckDB's merge join implementation or make direct comparisons between hash join and merge join spill behaviour. If the above checks don't resolve the issue, the [DuckDB execution plan visualizer](https://db.cs.uni-tuebingen.de/explain/) may help identify further bottlenecks. [a0c5462c73fd]",
+    "tier": "strong",
+    "escalated": false,
+    "routing_reason": "score 0.65 (reasoning/comparison language; medium query (18 words))",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs"
+    ],
+    "iterations": 7,
+    "citations": {
+      "cited_ids": [
+        "3a29a6720761",
+        "bb7380e551f4",
+        "630c82f1a6cc",
+        "a0c5462c73fd",
+        "6666887762ff",
+        "56b4911730d5",
+        "6a5a7eca8f28",
+        "4934960485a0"
+      ],
+      "invalid_ids": [],
+      "n_claims": 25,
+      "n_uncited": 14,
+      "citation_rate": 0.44,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 8,
+      "total_usd": 0.188598,
+      "by_tier": {
+        "strong": 0.188598
+      },
+      "input_tokens": 47216,
+      "output_tokens": 3130
+    },
+    "latency_ms": 59009.16437502019,
+    "revised": true
+  },
+  {
+    "question": "read a hive partitioned parquet dataset stored in an s3 bucket",
+    "answer": "To read a Hive partitioned Parquet dataset from S3, follow these steps:\n\n**1. Install and load the httpfs extension** [0263af6f11d9]\n\n```sql\nINSTALL httpfs;\nLOAD httpfs;\n```\n\n**2. Set up S3 credentials** (if needed for your bucket)\n\nRefer to the [AWS authentication guide](https://duckdb.org/docs/core_extensions/aws.html#configuration-and-authentication) for details on configuring credentials.\n\n**3. Query the Hive partitioned data with `hive_partitioning = true`** [0ea65d95f3f7]\n\n```sql\nSELECT * FROM read_parquet('s3://your-bucket/path/*/*.parquet', hive_partitioning = true);\n```\n\nThe `hive_partitioning` parameter tells DuckDB to automatically recognize partition columns from the directory structure [dc4ed66d08f5]. For example, if your S3 bucket has a structure like:\n\n```\ns3://bucket/orders/year=2021/month=1/file1.parquet\ns3://bucket/orders/year=2021/month=2/file2.parquet\ns3://bucket/orders/year=2022/month=11/file3.parquet\n```\n\nThen `year` and `month` will be automatically available as columns in the query result.\n\n**Optional: Specify partition types** [21eba957edcb]\n\nIf you want to explicitly cast partition columns to specific types:\n\n```sql\nSELECT * FROM read_parquet(\n    's3://bucket/path/*/*.parquet',\n    hive_partitioning = true,\n    hive_types = {'year': BIGINT, 'month': DATE}\n);\n```",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "score 0.00 (no difficulty signals)",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "run_sql"
+    ],
+    "iterations": 3,
+    "citations": {
+      "cited_ids": [
+        "0263af6f11d9",
+        "0ea65d95f3f7",
+        "dc4ed66d08f5",
+        "21eba957edcb"
+      ],
+      "invalid_ids": [],
+      "n_claims": 9,
+      "n_uncited": 6,
+      "citation_rate": 0.3333,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 4,
+      "total_usd": 0.013777,
+      "by_tier": {
+        "cheap": 0.013777
+      },
+      "input_tokens": 10397,
+      "output_tokens": 676
+    },
+    "latency_ms": 9721.117583016166,
+    "revised": false
+  }
+]

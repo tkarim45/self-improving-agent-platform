@@ -1,0 +1,188 @@
+[
+  {
+    "question": "how do I filter the output of a window function",
+    "answer": "In this example, the `QUALIFY` clause filters to show only rows where `rank = 1`, keeping the first product in each group by amount. You can reference either the window function directly in `QUALIFY`, or use an alias from the `SELECT` clause [e187bd92a4de].\n\nIf you need to filter inside the aggregate function itself, you can also use a `FILTER` clause on aggregate window functions [f13dac4fe87b]:\n\n```sql\nSELECT product,\n       count(*) FILTER (WHERE amount > 150) OVER (PARTITION BY product) AS high_sales\nFROM sales;\n```",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "always-cheap baseline",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "run_sql"
+    ],
+    "iterations": 3,
+    "citations": {
+      "cited_ids": [
+        "e187bd92a4de",
+        "f13dac4fe87b"
+      ],
+      "invalid_ids": [],
+      "n_claims": 3,
+      "n_uncited": 1,
+      "citation_rate": 0.6667,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 4,
+      "total_usd": 0.01141,
+      "by_tier": {
+        "cheap": 0.01141
+      },
+      "input_tokens": 8965,
+      "output_tokens": 489
+    },
+    "latency_ms": 11682.190999999875,
+    "revised": false
+  },
+  {
+    "question": "what is the syntax for PIVOT",
+    "answer": "DuckDB supports two `PIVOT` syntaxes: simplified and SQL standard [00acd81a2d65].\n\n**Simplified PIVOT Syntax** [3168db38bb9e]:\n```sql\nPIVOT \u27e8dataset\u27e9 ON \u27e8columns\u27e9 USING \u27e8values\u27e9 GROUP BY \u27e8rows\u27e9 ORDER BY \u27e8columns_with_order_directions\u27e9 LIMIT \u27e8number_of_rows\u27e9\n```\nThe `ON`, `USING`, and `GROUP BY` clauses are optional, but they may not all be omitted. You can specify multiple columns in the `ON` and `GROUP BY` clauses, and multiple aggregate expressions in the `USING` clause [2010887cfc99].\n\n**SQL Standard PIVOT Syntax** [00acd81a2d65]:\n```sql\nSELECT * FROM \u27e8dataset\u27e9 PIVOT (\n  \u27e8values\u27e9 FOR \u27e8column_1\u27e9 IN (\u27e8in_list\u27e9)\n  \u27e8column_2\u27e9 IN (\u27e8in_list\u27e9)\n  ...\n  GROUP BY \u27e8rows\u27e9\n)\n```\nUnlike the simplified syntax, the `IN` clause must be specified for each column to be pivoted. If you're interested in dynamic pivoting, the simplified syntax is recommended. Note that no commas separate expressions in the `FOR` clause, but `value` and `GROUP BY` expressions must be comma-separated [00acd81a2d65].",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "always-cheap baseline",
+    "tools": [
+      "search_docs"
+    ],
+    "iterations": 2,
+    "citations": {
+      "cited_ids": [
+        "00acd81a2d65",
+        "3168db38bb9e",
+        "2010887cfc99"
+      ],
+      "invalid_ids": [],
+      "n_claims": 6,
+      "n_uncited": 3,
+      "citation_rate": 0.5,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 3,
+      "total_usd": 0.00706,
+      "by_tier": {
+        "cheap": 0.00706
+      },
+      "input_tokens": 4825,
+      "output_tokens": 447
+    },
+    "latency_ms": 6238.724541995907,
+    "revised": false
+  },
+  {
+    "question": "match each trade to the most recent price recorded before it",
+    "answer": "Use an **ASOF JOIN** [6549f4727d6b]. This join matches each row from the left table (trades) to the most recent row from the right table (prices) where the timestamp is less than or equal to the trade's timestamp.\n\nThe syntax is:\n\n```sql\nSELECT t.*, p.price\nFROM trades t\nASOF JOIN prices p ON t.ticker = p.ticker AND t.trade_time >= p.price_time\nORDER BY t.trade_id;\n```\n\nThe key requirements are [6549f4727d6b]:\n- The last condition must be an **inequality** (`>=` in this case)\n- Both tables should be ordered by the timestamp column (DuckDB will verify this)\n- The condition `t.trade_time >= p.price_time` finds the most recent price where `price_time \u2264 trade_time`\n\nYou can also simplify the join condition using the `USING` keyword if your column names match [582d573c2edd]:\n\n```sql\nSELECT ticker, t.trade_time, quantity, price\nFROM trades t\nASOF JOIN prices p USING (ticker, trade_time);\n```\n\nFor cases where some trades may have no prior price, use `ASOF LEFT JOIN` instead to preserve those trades with NULL prices [61ee63a09c2b].",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "always-cheap baseline",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "run_sql"
+    ],
+    "iterations": 3,
+    "citations": {
+      "cited_ids": [
+        "6549f4727d6b",
+        "582d573c2edd",
+        "61ee63a09c2b"
+      ],
+      "invalid_ids": [],
+      "n_claims": 6,
+      "n_uncited": 4,
+      "citation_rate": 0.3333,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 4,
+      "total_usd": 0.017678,
+      "by_tier": {
+        "cheap": 0.017678
+      },
+      "input_tokens": 13033,
+      "output_tokens": 929
+    },
+    "latency_ms": 10382.979459012859,
+    "revised": false
+  },
+  {
+    "question": "why would a hash join be slower than a merge join here, and what would you check first",
+    "answer": "The documentation I can access does not provide specific information about why a hash join would be slower than a merge join, or detailed performance comparisons between these join algorithms.\n\nHowever, here's what you should check first to diagnose the issue:\n\n**What to check first:**\n\n1. **Run `EXPLAIN ANALYZE` on your query** [4934960485a0]. This will show you the actual CPU time each step takes and confirm which join algorithm is being used. You can see your physical query plan and estimated cardinality (`EC`) for each operator [a7f17ade5747].\n\n2. **Check cardinality estimates** \u2014 DuckDB uses a cost-based query optimizer that estimates cardinality using statistics from base tables [6666887762ff]. If the estimated cardinality is wrong, it might choose a suboptimal algorithm. Look at the `EC` (estimated cardinality) values in your `EXPLAIN` output.\n\n3. **Verify memory availability** \u2014 The documentation notes that workloads containing large joins over many-to-many tables yield large intermediate datasets and thus require more memory for their evaluation [bb7380e551f4]. If memory is constrained, hash table operations could spill to disk and become slow.\n\nCould you share your query and the `EXPLAIN ANALYZE` output? That would let me see which join algorithm DuckDB actually chose and help diagnose the specific issue.",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "always-cheap baseline",
+    "tools": [
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs",
+      "search_docs"
+    ],
+    "iterations": 6,
+    "citations": {
+      "cited_ids": [
+        "4934960485a0",
+        "a7f17ade5747",
+        "6666887762ff",
+        "bb7380e551f4"
+      ],
+      "invalid_ids": [],
+      "n_claims": 11,
+      "n_uncited": 7,
+      "citation_rate": 0.3636,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 7,
+      "total_usd": 0.047428,
+      "by_tier": {
+        "cheap": 0.047428
+      },
+      "input_tokens": 40173,
+      "output_tokens": 1451
+    },
+    "latency_ms": 22205.48495798721,
+    "revised": true
+  },
+  {
+    "question": "read a hive partitioned parquet dataset stored in an s3 bucket",
+    "answer": "To read a Hive partitioned parquet dataset from S3, use the `read_parquet()` function with the `hive_partitioning = true` parameter.\n\nFirst, set up the `httpfs` extension for S3 access [0263af6f11d9]:\n\n```sql\nINSTALL httpfs;\nLOAD httpfs;\n```\n\nThen read the dataset with a glob pattern and enable Hive partitioning [0ea65d95f3f7]:\n\n```sql\nSELECT * FROM read_parquet('s3://bucket-name/path/**/*.parquet', hive_partitioning = true);\n```\n\nThe glob pattern `**/*.parquet` recursively matches all parquet files in the directory structure [0ea65d95f3f7]. When `hive_partitioning = true`, DuckDB automatically detects and creates columns from the partition keys in the folder names (e.g., `year=2021/month=1/` creates `year` and `month` columns) [dc4ed66d08f5].\n\nFor example, if your S3 dataset is structured like:\n```\ns3://my-bucket/orders/year=2021/month=1/file1.parquet\ns3://my-bucket/orders/year=2021/month=2/file2.parquet\ns3://my-bucket/orders/year=2022/month=1/file3.parquet\n```\n\nYou would read it with:\n```sql\nSELECT * FROM read_parquet('s3://my-bucket/orders/**/*.parquet', hive_partitioning = true);\n```\n\nOptionally, you can specify the types of partition columns using `hive_types` [21eba957edcb]:\n\n```sql\nSELECT * FROM read_parquet(\n  's3://my-bucket/orders/**/*.parquet',\n  hive_partitioning = true,\n  hive_types = {'year': BIGINT, 'month': BIGINT}\n);\n```\n\nSee the S3 configuration guide for authentication details if needed [cee6df9f7d15].",
+    "tier": "cheap",
+    "escalated": false,
+    "routing_reason": "always-cheap baseline",
+    "tools": [
+      "search_docs",
+      "search_docs"
+    ],
+    "iterations": 2,
+    "citations": {
+      "cited_ids": [
+        "0263af6f11d9",
+        "0ea65d95f3f7",
+        "dc4ed66d08f5",
+        "21eba957edcb",
+        "cee6df9f7d15"
+      ],
+      "invalid_ids": [],
+      "n_claims": 8,
+      "n_uncited": 2,
+      "citation_rate": 0.75,
+      "grounded": true
+    },
+    "cost": {
+      "calls": 3,
+      "total_usd": 0.010077,
+      "by_tier": {
+        "cheap": 0.010077
+      },
+      "input_tokens": 7057,
+      "output_tokens": 604
+    },
+    "latency_ms": 7515.777541993884,
+    "revised": false
+  }
+]

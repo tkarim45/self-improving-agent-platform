@@ -5,11 +5,18 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M1 of 8 done** (2026-07-21). Domain committed; ingestion, the
-hybrid index and a measured retrieval stack run end to end on the real corpus; 75 offline
-tests pass. **No answer-quality results yet** — there is no agent until M2 and no flywheel
-until M5. Code lands milestone by milestone (see
+**Status:** 🔨 In build — **M0–M2 of 8 done** (2026-07-21). Domain committed; ingestion, a
+measured retrieval stack, and a grounded tool-using agent run end to end against real AWS
+Bedrock; 124 offline tests pass. **No flywheel until M5**, and no judged answer quality until
+M4. Code lands milestone by milestone (see
 [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**Agent today:** plan → retrieve → tool → critic, with inline citations checked against what
+was actually retrieved, a sandboxed DuckDB tool the agent uses to verify its own SQL, and a
+cost-aware router. On 5 real questions: **5/5 grounded, 0 invalid citations, $0.25.** The
+headline finding is negative — **the router cost 2.7× an always-cheap baseline for no
+measurable grounding gain**, with one question consuming 75% of the run. Details in
+[`eval/agent/FINDINGS.md`](eval/agent/FINDINGS.md).
 
 **Retrieval today:** dense + link-graph boost, **R@1 0.371 / R@10 0.843 / MRR 0.573 at ~11 ms
 per query** on 35 labeled queries. Full numbers in
@@ -118,12 +125,20 @@ make corpus
 # 3. Build the hybrid index (BM25 + FAISS)
 make ingest
 
-# 4. Tests: 75 offline, no network, no cloud spend
+# 4. Tests: 124 offline, no network, no cloud spend
 make test
 
 # 5. Retrieval eval (add eval-full for the slow cross-encoder arms)
 make eval
+
+# 6. The agent. `agent-dry` costs nothing; `agent-demo` SPENDS on real Bedrock (~$0.25)
+make agent-dry
+set -a; source ~/.env; set +a && make agent-demo
 ```
+
+Every agent run is bounded three ways — a per-question spend limit that raises rather than
+continuing, a run-wide model-call ceiling, and a search budget. All three were added because
+a run hit them, not as a precaution.
 
 Ingest defaults to the `hashing` embedder, which needs no download and indexes the whole
 corpus in **0.7 s** — that keeps the test suite and iteration fast. For real semantic

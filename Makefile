@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval eval-full dev clean
+.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -23,6 +23,15 @@ lint: ## Lint
 
 fmt: ## Format + autofix
 	$(PY) -m ruff format src tests && $(PY) -m ruff check --fix src tests
+
+agent-demo: ## Run the M2 agent demo on real Bedrock (SPENDS MONEY; source creds first)
+	$(PY) -m src.agent demo --spend-limit 0.20 --out eval/agent/m2_demo.json
+
+agent-baseline: ## Always-cheap baseline for the router comparison (spends money)
+	$(PY) -m src.agent demo --router cheap --spend-limit 0.20 --out eval/agent/m2_always_cheap.json
+
+agent-dry: ## Exercise the agent plumbing with the fake provider (no spend)
+	$(PY) -m src.agent demo --dry-run
 
 eval: ## Run the labeled retrieval eval (fast arms only)
 	$(PY) -m src.eval retrieval --tenant $(TENANT) --out eval/retrieval/report.md

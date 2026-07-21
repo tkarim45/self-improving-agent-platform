@@ -96,6 +96,45 @@ Steps:
 **Artifact:** `Agent.run(query)` returns a cited answer; a demo notebook shows 5 domain
 questions answered with citations + which model tier served each.
 
+**DONE 2026-07-21.** [`eval/agent/FINDINGS.md`](../eval/agent/FINDINGS.md) + raw records.
+`make agent-demo`. Real AWS Bedrock; cheap = Haiku 4.5, strong = **Sonnet 4.6** (substituted:
+Sonnet 5, Opus 4.8 and Opus 4.5 are all listed on this account but return 403 "not available",
+and the Mantle endpoint 403s too — only the legacy InvokeModel path serves). 124 tests, all
+offline via a scriptable fake provider.
+
+**5/5 answers grounded, 0 invalid citations, $0.25 total.**
+
+**Headline: routing to the strong tier bought nothing measurable and cost 2.7×.** Against an
+always-cheap baseline, the heuristic router produced the same 5/5 grounded, same 0 invalid
+citations, and the same ~50% claim-citation rate — for $0.2525 vs $0.0937. The single question
+it sent to Sonnet cost **$0.189, 75% of the whole run** and 4.0× the same question on Haiku.
+Honest caveat: the citation check measures *grounding*, not correctness — Sonnet wrote a much
+fuller answer (25 claims vs 11) and that may be worth something this system cannot yet see.
+That is M4's job. Until then always-cheap is the defensible default.
+
+Five findings, each of which changed the code:
+
+1. **Bounding a conversation does not bound a run.** `max_iterations` caps one conversation,
+   but escalation restarts it and the critic's revision runs it again — worst case
+   `max_iterations × 2 + 1 + max_iterations` calls. Hit **10 calls / $0.22 on one question**
+   before the spend limit killed it. Added a run-wide `max_llm_calls` ceiling.
+2. **The agent searched in circles until the money ran out** — 12 `search_docs` calls, 35,205
+   input tokens, *no answer*, on a question the DuckDB docs largely cannot answer. Nothing
+   told it to stop. Added a search budget that forces a decision, plus prompt language.
+3. **The grounding metric under-reported on correctly-cited answers** — 0% on an answer with
+   three valid citations, because models put the citation after the period (`applied.
+   [403bd...]`) and the splitter stranded it. Rescored that answer **0% → 67%**. An
+   under-reporting metric would have fed M5 good answers labelled as failures.
+4. **The model split its answer across turns and the loop silently truncated it** — the first
+   real answer began mid-sentence. A prompt fix, but an invisible failure.
+5. **Bedrock IDs cannot be constructed** — the suffix convention is not uniform (Sonnet 4.6
+   carries no date suffix, Haiku 4.5 does), and a plausible constructed ID 400s. Read them
+   from `list_inference_profiles()`.
+
+Caveats: 5 questions is directional only; grounding is not correctness; the escalation path
+saw **zero** live escalations because the cheap tier never failed, so it is untested on real
+traffic.
+
 ---
 
 ## Milestone 3 — Guardrails & ops basics (Week 9–10)
@@ -218,7 +257,10 @@ optional** — the project stands alone on the laptop without it.
 - [x] **M1 Hybrid retrieval — done 2026-07-21.** RRF fusion, cross-encoder reranker, link
       graph, 35-query labeled eval, from-scratch Recall@k/MRR/nDCG. Default = dense +
       graph_boost 0.05 (R@1 0.371, R@10 0.843, MRR 0.573, ~11 ms). 75 tests.
-- [ ] M2 Agent — cited answers + tools + router
+- [x] **M2 Agent — done 2026-07-21.** plan→retrieve→tool→critic loop on real Bedrock, inline
+      citations with a grounding post-check, sandboxed DuckDB SQL tool, cost-aware router +
+      escalation. 5/5 grounded, 0 invalid citations, $0.25. Router costs 2.7× always-cheap
+      for no measurable grounding gain. 124 tests.
 - [ ] M3 Guardrails & tracing
 - [ ] M4 Eval harness — CI gate proven red/green
 - [ ] M5 Flywheel — one automated promote cycle
