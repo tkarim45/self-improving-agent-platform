@@ -1,0 +1,34 @@
+PY := $(HOME)/miniconda3/envs/personal/bin/python
+TENANT ?= duckdb
+
+.PHONY: help install corpus ingest test lint fmt eval dev clean
+
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+
+install: ## Install deps into the personal conda env
+	$(PY) -m pip install -r requirements.txt
+
+corpus: ## Fetch the DuckDB documentation corpus into data/corpus/
+	$(PY) -m src.corpus fetch
+
+ingest: ## Ingest the corpus into the hybrid index (make ingest TENANT=duckdb)
+	$(PY) -m src.ingest data/corpus/$(TENANT) --tenant $(TENANT)
+
+test: ## Run the offline test suite (no network, no cloud spend)
+	$(PY) -m pytest
+
+lint: ## Lint
+	$(PY) -m ruff check src tests
+
+fmt: ## Format + autofix
+	$(PY) -m ruff format src tests && $(PY) -m ruff check --fix src tests
+
+eval: ## Run the golden eval set (Milestone 4)
+	@echo "not implemented until Milestone 4"
+
+dev: ## Run API + console (Milestone 3+)
+	@echo "not implemented until Milestone 3"
+
+clean:
+	rm -rf data/index .pytest_cache **/__pycache__

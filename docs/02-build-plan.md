@@ -172,7 +172,17 @@ optional** — the project stands alone on the laptop without it.
 
 ## Milestone checklist
 
-- [ ] M0 Foundations — one doc ingested
+- [x] **M0 Foundations — done 2026-07-21.** Domain committed (DuckDB docs support agent);
+      `src/` package + Makefile + ruff + pytest; the five interfaces from `docs/01`;
+      heading-aware chunker; BM25 + FAISS hybrid index with per-tenant dirs, content-addressed
+      chunk ids (so re-ingest is incremental) and save/load; `python -m src.corpus fetch` and
+      `python -m src.ingest`. **Measured:** 407 docs → 4,556 chunks, 0.7 s with the hashing
+      embedder / 65 s with MiniLM-L6-v2, 30 tests passing offline.
+      *Two findings worth keeping:* (1) BM25 relevance cannot be thresholded on `score > 0` —
+      Okapi IDF goes negative for any term in more than half the corpus, so a real match on a
+      small index scores below zero; overlap-gate instead. (2) The docs repo ships ~7 copies of
+      every page (one per release), so a fetch must pin one version or the index fills with
+      near-duplicates and "the correct chunk" stops being well-defined.
 - [ ] M1 Hybrid retrieval — Recall@k report
 - [ ] M2 Agent — cited answers + tools + router
 - [ ] M3 Guardrails & tracing

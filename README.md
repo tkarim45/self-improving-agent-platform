@@ -5,8 +5,16 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 📐 Spec / scaffold. No measured results yet. This repo is the build plan;
-code lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0 of 8 done** (2026-07-21). Domain committed, ingestion and the
+hybrid index run end to end on the real corpus; 30 offline tests pass. **No quality results
+yet** — retrieval is not measured until M1 and the flywheel does not exist until M5. Code
+lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**Domain:** open-source support agent over the **DuckDB documentation** (411 pages,
+`docs/current`, pinned by commit sha). Rationale in
+[`docs/00-what-it-is.md`](docs/00-what-it-is.md) — briefly, it avoids overlapping the two
+existing SEC-filing repos, and DuckDB is niche enough that Claude cannot answer from
+memory, so a retrieval failure shows up as a wrong answer instead of being masked.
 
 **Capstone #1 of 3.** Sibling repos: `ondevice-model-lifecycle`,
 `realtime-decision-intelligence`. Estimated effort: **6–12 months solo**.
@@ -88,22 +96,35 @@ self-improving-agent-platform/
 └── data/                     # gitignored; fetched by scripts
 ```
 
-## Quickstart (once Milestone 0 is done)
+## Quickstart (working today)
 
 ```bash
 # 1. Env (personal conda env, never base; see ~/.claude/CLAUDE.md)
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate personal
-pip install -r requirements.txt
+make install
 
-# 2. Local model for the cheap tier (llama.cpp + a small GGUF)
-#    see docs/03-setup.md for the exact model + download command
+# 2. Fetch the corpus (411 DuckDB doc pages -> data/corpus/duckdb, gitignored)
+make corpus
 
-# 3. Cloud creds (Claude / Bedrock) come from the global ~/.env
-set -a; source ~/.env; set +a
+# 3. Build the hybrid index (BM25 + FAISS)
+make ingest
 
-# 4. Run the API + console (target)
-make dev
+# 4. Tests: 30 offline, no network, no cloud spend
+make test
 ```
+
+Ingest defaults to the `hashing` embedder, which needs no download and indexes the whole
+corpus in **0.7 s** — that keeps the test suite and iteration fast. For real semantic
+retrieval, pass a model (**65 s** for 4,556 chunks on an M1):
+
+```bash
+python -m src.ingest data/corpus/duckdb --tenant duckdb --rebuild \
+  --embedder sentence-transformers/all-MiniLM-L6-v2 \
+  --query "how do I filter the result of a window function"
+```
+
+Later milestones add the local GGUF cheap tier and cloud creds (see
+[`docs/03-setup.md`](docs/03-setup.md)); neither is needed for the steps above.
 
 ## How to build it
 

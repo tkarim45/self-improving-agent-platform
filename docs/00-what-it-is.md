@@ -48,13 +48,31 @@ A multi-tenant **domain agent platform** with three things most demos lack:
 | S6 | Cost-per-query stays bounded while quality rises | Cost line on the same chart |
 | S7 | Whole thing boots and runs on the M1 (cheap path fully local) | `make dev` + screen recording |
 
-## Chosen domain
+## Chosen domain — COMMITTED (Milestone 0, 2026-07-21)
 
-Pick **one** real domain with public documents and a natural task, e.g.:
+**Open-source support agent over the DuckDB documentation.**
 
-- **Financial-filing analyst** — SEC 10-K/10-Q/8-K; task = multi-step analysis with
-  citations. (Extends the existing `sec-rag-analyst` repo.)
-- **Legal-intake triage** — natural fit with existing MY Law Company client domain.
+- **Corpus:** `github.com/duckdb/duckdb-web`, `docs/current` only — 411 pages, 4.1 MB,
+  Jekyll markdown. Fetched by `python -m src.corpus fetch`, never committed.
+- **Task:** answer a DuckDB user's question with a grounded, cited answer, the way a good
+  maintainer would in an issue thread.
+- **Query supply for the Milestone 6 simulator:** the DuckDB issue tracker and Discord
+  are full of real user questions, so the usage stream can be replayed from real query
+  patterns rather than invented ones.
 
-Commit to one in Milestone 0. The flywheel needs a stable task to measure improvement
-against.
+Why this over the two originally-listed candidates:
+
+- **Not SEC filings.** `sec-rag-analyst` (shipped) and `agentic-filing-analyst`
+  (scaffolded) already cover that corpus. A third would prove nothing new.
+- **Less memorized than FastAPI/Postgres.** Claude knows popular frameworks well enough to
+  answer from parametric memory, which would mask retrieval failures — the system would
+  look grounded while the retriever was broken. DuckDB is real but niche enough that a
+  wrong retrieval shows up as a wrong answer, so groundedness is actually measurable.
+- **Verifiable ground truth.** Answers are SQL semantics, so a golden case can be checked
+  by running the query, not just judged by another model. That matters in Milestone 5,
+  where a judge-only signal is what reward-hacking exploits.
+
+One caveat to design around: docs change under us. The corpus is pinned by commit sha
+(`--ref`), so an improvement curve is not silently confounded by upstream doc edits.
+
+The flywheel needs a stable task to measure improvement against, and this is it.

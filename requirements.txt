@@ -1,0 +1,22 @@
+# Core (Milestone 0-1). Python 3.12, `personal` conda env.
+numpy>=1.26
+pydantic>=2.7
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# Retrieval
+rank-bm25>=0.2.2
+faiss-cpu>=1.8
+sentence-transformers>=3.0
+networkx>=3.3
+
+# Agent / models (Milestone 2+)
+anthropic[bedrock]>=0.40
+
+# Serving (Milestone 3+)
+fastapi>=0.115
+uvicorn>=0.30
+
+# Dev
+pytest>=8.0
+ruff>=0.6

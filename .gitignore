@@ -51,9 +51,11 @@ mlruns/
 .dvc/cache/
 
 # --- Data (versioned via DVC or downloaded by scripts, not git) ---
-data/raw/
-data/interim/
-data/processed/
+# Everything under data/ is fetched, never committed: `make corpus` clones ~370 MB of
+# duckdb-web into data/.cache/ and stages the corpus into data/corpus/. Reproducibility
+# comes from the pinned commit sha, not from checking the bytes in.
+data/
+!data/.gitkeep
 *.sqlite
 *.db
 *.duckdb
