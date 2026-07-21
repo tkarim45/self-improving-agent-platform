@@ -153,4 +153,8 @@ rank-bm25 · networkx (GraphRAG) · MCP · FastAPI + async workers · Redis · S
 
 ## License
 
-Private. All rights reserved (personal portfolio project).
+MIT — see [`LICENSE`](LICENSE).
+
+The DuckDB documentation corpus is **not** covered by this license. It is fetched at build
+time from [duckdb/duckdb-web](https://github.com/duckdb/duckdb-web) under its own terms and
+is never committed here.
