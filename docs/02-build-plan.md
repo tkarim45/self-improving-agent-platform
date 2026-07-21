@@ -45,6 +45,38 @@ Steps:
 
 **Artifact:** retrieval eval report (Recall@k table) committed under `eval/`.
 
+**DONE 2026-07-21.** [`eval/retrieval/report.md`](../eval/retrieval/report.md) (generated) +
+[`eval/retrieval/FINDINGS.md`](../eval/retrieval/FINDINGS.md) (analysis). 35 labeled queries
+(32 single-hop, 3 multi-hop), page-level labels, 75 tests passing.
+
+**Shipped default: `dense` + `graph_boost=0.05`** — R@1 0.371, R@10 0.843, MRR 0.573,
+nDCG@10 0.618, ~11 ms/query.
+
+Four findings, each of which changed the default:
+
+1. **Naive hybrid is worse than its own better leg.** Equal-weight RRF scored R@1 0.257 vs
+   dense's 0.357; down-weighting BM25 to 0.3 recovered it to 0.343. RRF was not wrong, it was
+   being fed a lopsided pair and treating them as equals. "Add hybrid search" is not free.
+2. **The cross-encoder never fixed rank 1** — R@1 stayed at exactly 0.357 — while improving
+   R@3 (0.571 → 0.671) at 400–1,000× the latency (11 ms → 4,800–11,700 ms across runs). It
+   reorders the pool; it cannot conjure a page into it. `hybrid+rerank` losing to
+   `dense+rerank` says the same thing: rerank quality is capped by first-stage quality.
+3. **The graph did not solve multi-hop, the thing it was built for.** Coverage@10 held at
+   0.667 with and without it, and at boost ≥0.2 it *halved* to 0.333 — the docs average 5.7
+   links/page, so a strong boost floods the top 10 with neighbours and evicts the real second
+   hop. Shipped at the swept optimum 0.05 as a mild ranking nudge, with the cliff pinned as a
+   test. Reranking is worse still for multi-hop (coverage 0.667 → 0.333): a cross-encoder
+   scores each chunk alone, and a bridge page rarely looks relevant alone. Joint reasoning
+   over a *set* is an agent problem (M2), not a ranking one.
+4. **One label was wrong and the retriever was right.** `q15` was missed by every config; the
+   labeled page was a bare syntax reference while the page dense ranked 4th was the real
+   answer. Widened after reading both, corrected inline in `duckdb.yaml`. On a docs corpus the
+   answer is routinely split between a reference page and a concept page, so single-page
+   labels systematically understate recall.
+
+Caveats: 35 queries (differences under ~0.05 are not resolvable), only 3 multi-hop queries
+(each worth 0.333 of that metric), one embedder, and latency measured on a loaded laptop.
+
 ---
 
 ## Milestone 2 — The agent (Week 5–8)
@@ -183,7 +215,9 @@ optional** — the project stands alone on the laptop without it.
       small index scores below zero; overlap-gate instead. (2) The docs repo ships ~7 copies of
       every page (one per release), so a fetch must pin one version or the index fills with
       near-duplicates and "the correct chunk" stops being well-defined.
-- [ ] M1 Hybrid retrieval — Recall@k report
+- [x] **M1 Hybrid retrieval — done 2026-07-21.** RRF fusion, cross-encoder reranker, link
+      graph, 35-query labeled eval, from-scratch Recall@k/MRR/nDCG. Default = dense +
+      graph_boost 0.05 (R@1 0.371, R@10 0.843, MRR 0.573, ~11 ms). 75 tests.
 - [ ] M2 Agent — cited answers + tools + router
 - [ ] M3 Guardrails & tracing
 - [ ] M4 Eval harness — CI gate proven red/green

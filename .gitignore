@@ -61,8 +61,11 @@ data/
 *.duckdb
 
 # --- Vector stores / indexes ---
+# NOT a bare `index/`: that pattern matches at any depth and silently swallowed the whole
+# `src/index/` source package, which shipped an M0 commit that could not import. Anchor
+# built indexes to where they actually live (data/ is already ignored wholesale above).
 *.faiss
-index/
+/data/index/
 .chroma/
 
 # --- Logs / traces ---

@@ -5,10 +5,19 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0 of 8 done** (2026-07-21). Domain committed, ingestion and the
-hybrid index run end to end on the real corpus; 30 offline tests pass. **No quality results
-yet** — retrieval is not measured until M1 and the flywheel does not exist until M5. Code
-lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0–M1 of 8 done** (2026-07-21). Domain committed; ingestion, the
+hybrid index and a measured retrieval stack run end to end on the real corpus; 75 offline
+tests pass. **No answer-quality results yet** — there is no agent until M2 and no flywheel
+until M5. Code lands milestone by milestone (see
+[`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**Retrieval today:** dense + link-graph boost, **R@1 0.371 / R@10 0.843 / MRR 0.573 at ~11 ms
+per query** on 35 labeled queries. Full numbers in
+[`eval/retrieval/report.md`](eval/retrieval/report.md), analysis in
+[`eval/retrieval/FINDINGS.md`](eval/retrieval/FINDINGS.md). Three results worth the click: a
+naive equal-weight hybrid scored *worse* than dense alone; the cross-encoder reranker cost
+400–1,000× the latency and never once improved rank 1; and the link graph failed at the
+multi-hop job it was built for.
 
 **Domain:** open-source support agent over the **DuckDB documentation** (411 pages,
 `docs/current`, pinned by commit sha). Rationale in
@@ -109,8 +118,11 @@ make corpus
 # 3. Build the hybrid index (BM25 + FAISS)
 make ingest
 
-# 4. Tests: 30 offline, no network, no cloud spend
+# 4. Tests: 75 offline, no network, no cloud spend
 make test
+
+# 5. Retrieval eval (add eval-full for the slow cross-encoder arms)
+make eval
 ```
 
 Ingest defaults to the `hashing` embedder, which needs no download and indexes the whole

@@ -1,0 +1,172 @@
+# Labeled retrieval eval set — DuckDB docs (Milestone 1).
+#
+# Labels point at SOURCE PAGES, not chunk ids. Chunk ids are content-addressed on chunk text,
+# so any chunker change would invalidate every label — and M5 re-chunks by design. Page-level
+# relevance survives re-chunking, re-embedding, and re-ingestion.
+#
+# `relevant` is the set of pages that genuinely answer the query. A hit on any of them counts
+# for recall. Queries are written the way a user would ask in an issue thread, deliberately
+# NOT using the page's own title wording, because a query that quotes the title makes BM25
+# look better than it is.
+#
+# `kind: multi_hop` means answering needs BOTH pages, not either — those are the cases the
+# graph index (M1 step 4) exists for, and they are scored separately.
+
+corpus: duckdb-web@89998bfe4a0c docs/current
+tenant: duckdb
+
+queries:
+  - id: q01
+    query: how do I filter rows produced by a window function
+    relevant: [sql/query_syntax/qualify.md]
+
+  - id: q02
+    query: match each trade to the most recent price recorded before it
+    relevant: [guides/sql_features/asof_join.md]
+
+  - id: q03
+    query: turn the distinct values of a column into separate columns
+    relevant: [sql/statements/pivot.md]
+
+  - id: q04
+    query: collapse many columns back down into rows
+    relevant: [sql/statements/unpivot.md]
+
+  - id: q05
+    query: select every column apart from one I want to drop
+    relevant: [sql/expressions/star.md]
+
+  - id: q06
+    query: expand a list column so each element becomes its own row
+    relevant: [sql/query_syntax/unnest.md]
+
+  - id: q07
+    query: quick min max and average for every column in a table at once
+    relevant: [guides/meta/summarize.md]
+
+  - id: q08
+    query: see what the optimizer is actually doing with my query
+    relevant: [guides/meta/explain.md]
+
+  - id: q09
+    query: find out which operator is eating all the runtime
+    relevant: [guides/meta/explain_analyze.md]
+
+  - id: q10
+    query: my query keeps dying because it runs out of memory
+    relevant: [guides/troubleshooting/oom_errors.md, guides/performance/oom.md]
+
+  - id: q11
+    query: run sql directly against a pandas dataframe
+    relevant: [guides/python/sql_on_pandas.md]
+
+  - id: q12
+    query: open a second database file in the same session
+    relevant: [sql/statements/attach.md]
+
+  - id: q13
+    query: define a reusable function of my own
+    relevant: [sql/statements/create_macro.md]
+
+  - id: q14
+    query: search a text column for relevance ranked matches
+    relevant: [guides/sql_features/full_text_search.md]
+
+  # LABEL CORRECTED 2026-07-21. Originally labeled `create_secret.md` alone, and every config
+  # missed it. Inspection showed the retriever was right and the label was wrong:
+  # `create_secret.md` is a 2-chunk bare syntax reference, while `configuration/secrets_manager.md`
+  # is the page that actually explains where credentials live — and dense ranked it 4th.
+  # Widened after reading both pages, not to move the number. The lesson is kept in the M1
+  # report: on a docs corpus the answer is routinely split between a reference page and a
+  # concept page, so single-page labels systematically understate recall.
+  - id: q15
+    query: where do I put my access key so it can reach cloud storage
+    relevant: [configuration/secrets_manager.md, sql/statements/create_secret.md]
+
+  - id: q16
+    query: my csv has malformed lines and the load aborts
+    relevant: [data/csv/reading_faulty_csv_files.md]
+
+  - id: q17
+    query: how does it guess column types and delimiter when loading csv
+    relevant: [data/csv/auto_detection.md]
+
+  - id: q18
+    query: write output split into folders by column value
+    relevant: [data/partitioning/partitioned_writes.md]
+
+  - id: q19
+    query: query a folder laid out as key=value directories
+    relevant: [data/partitioning/hive_partitioning.md]
+
+  - id: q20
+    query: pull tables from an existing postgres server
+    relevant: [guides/database_integration/postgres.md]
+
+  - id: q21
+    query: extract a substring using a pattern
+    relevant: [sql/functions/regular_expressions.md]
+
+  - id: q22
+    query: print a timestamp in a custom layout like dd/mm/yyyy
+    relevant: [sql/functions/dateformat.md]
+
+  - id: q23
+    query: walk a parent child hierarchy of arbitrary depth
+    relevant: [sql/query_syntax/with.md]
+
+  - id: q24
+    query: grab a random subset of rows for testing
+    relevant: [sql/query_syntax/sample.md]
+
+  - id: q25
+    query: apply an expression to every element of a list
+    relevant: [sql/functions/lambda.md]
+
+  - id: q26
+    query: insert a row but update it instead if the key already exists
+    relevant: [sql/statements/insert.md, sql/statements/merge_into.md]
+
+  - id: q27
+    query: compare strings ignoring case and accents
+    relevant: [sql/expressions/collations.md]
+
+  - id: q28
+    query: restrict a column to a fixed set of allowed string values
+    relevant: [sql/data_types/enum.md]
+
+  - id: q29
+    query: reuse one statement with different parameter values
+    relevant: [sql/query_syntax/prepared_statements.md]
+
+  - id: q30
+    query: undo everything I did if one statement fails
+    relevant: [sql/statements/transactions.md]
+
+  - id: q31
+    query: what tables exist in this database
+    relevant: [guides/meta/list_tables.md]
+
+  - id: q32
+    query: save query results into a parquet file
+    relevant: [guides/file_formats/parquet_export.md, sql/statements/copy.md]
+
+  # --- multi-hop: answering needs BOTH pages, not either one ---
+
+  - id: m01
+    query: read a hive partitioned parquet dataset stored in an s3 bucket
+    relevant: [data/partitioning/hive_partitioning.md, guides/network_cloud_storage/s3_import.md]
+    kind: multi_hop
+    note: needs the partitioning layout AND the s3 access path
+
+  - id: m02
+    query: export a query result as partitioned parquet to s3
+    relevant: [data/partitioning/partitioned_writes.md, guides/network_cloud_storage/s3_export.md]
+    kind: multi_hop
+    note: partitioned write semantics AND the s3 write path
+
+  - id: m03
+    query: why is my join slow and what index would help
+    relevant: [guides/performance/join_operations.md, guides/performance/indexing.md]
+    kind: multi_hop
+    note: join strategy AND indexing guidance are on separate pages

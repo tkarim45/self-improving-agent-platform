@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval dev clean
+.PHONY: help install corpus ingest test lint fmt eval eval-full dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -24,8 +24,12 @@ lint: ## Lint
 fmt: ## Format + autofix
 	$(PY) -m ruff format src tests && $(PY) -m ruff check --fix src tests
 
-eval: ## Run the golden eval set (Milestone 4)
-	@echo "not implemented until Milestone 4"
+eval: ## Run the labeled retrieval eval (fast arms only)
+	$(PY) -m src.eval retrieval --tenant $(TENANT) --out eval/retrieval/report.md
+
+eval-full: ## Retrieval eval including the cross-encoder arms (slow: ~7s/query)
+	$(PY) -m src.eval retrieval --tenant $(TENANT) \
+		--reranker cross-encoder/ms-marco-MiniLM-L-6-v2 --out eval/retrieval/report.md
 
 dev: ## Run API + console (Milestone 3+)
 	@echo "not implemented until Milestone 3"
