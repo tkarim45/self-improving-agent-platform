@@ -5,11 +5,19 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M3 of 8 done** (2026-07-22). Domain committed; ingestion, a
-measured retrieval stack, a grounded tool-using agent, and a guardrail + tracing boundary all
-run end to end against real AWS Bedrock; 165 offline tests pass. **No judged answer quality
-until M4, no flywheel until M5.** Code lands milestone by milestone (see
+**Status:** 🔨 In build — **M0–M4 of 8 done** (2026-07-22). Domain committed; ingestion, a
+measured retrieval stack, a grounded tool-using agent, a guardrail + tracing boundary, and a
+continuous eval harness with a CI gate all run end to end against real AWS Bedrock; 193 offline
+tests pass. **No self-improvement flywheel until M5.** Code lands milestone by milestone (see
 [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**Eval harness (M4):** online scorers on every trace, an **execution-based objective oracle**
+(SQL answers are checked by *running* them, not judged by a model), an LLM-judge calibrated
+*against* that oracle, a golden eval set, and a CI gate. The gate flips **92% green → 67% red**
+on a deliberately-worse prompt. Two findings: a gate on execution alone would have missed the
+regression (the bad prompt collapsed citations, not SQL), and the one judge-vs-execution
+disagreement turned out to be the *golden case* being wrong, which the judge caught. Details in
+[`eval/golden/FINDINGS.md`](eval/golden/FINDINGS.md).
 
 **Guardrails + tracing (M3):** input/tool/output gates (secret + PII redaction, injection
 block, unsafe-SQL policy), per-request traces to SQLite, and ordered provider failover. On a
@@ -145,6 +153,9 @@ set -a; source ~/.env; set +a && make agent-demo
 
 # 7. View persisted request traces (cost, latency, grounding, guard actions)
 make traces
+
+# 8. The eval gate. `golden` is free (replay); `golden-live` SPENDS on Bedrock (~$0.30)
+make golden
 ```
 
 Every agent run is bounded three ways — a per-question spend limit that raises rather than

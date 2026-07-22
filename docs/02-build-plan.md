@@ -198,6 +198,36 @@ Steps:
 **Artifact:** a red CI run on a bad-prompt PR + a green run on a good one; a judge
 calibration report.
 
+**DONE 2026-07-22.** [`eval/golden/FINDINGS.md`](../eval/golden/FINDINGS.md). Online scorers
+(groundedness, citation rate, task-success, abstention — deterministic, every trace), an
+**execution-based objective oracle** (SQL answers checked by running them), an LLM-judge
+(faithfulness/relevance/completeness, verdict recomputed from scores, malformed JSON fails
+safe), a 12-case golden set (8 exec / 3 reference / 1 abstain, every `expected` verified by
+running it), and a CI gate (replay mode = deterministic + free on every PR; live mode = real
+Bedrock + judge, manual). 28 new tests (193 total).
+
+**The gate flips: good prompt 92% GREEN → bad prompt 67% RED** (same 12 cases, threshold 75%;
+replay CLI exits 0/1). CI is PR-only + manual dispatch, deliberately not on push to main.
+
+Two findings:
+
+1. **A gate on execution alone would have missed the regression.** The bad prompt
+   ("you know DuckDB, don't search, citations unnecessary") barely moved the exec cases
+   (8/8 → 7/8) — the model knows basic SQL from memory — but collapsed the citation cases
+   (**reference 2/3 → 0/3**). Execution catches wrong SQL; reference catches ungrounded
+   answers; you need both. The split confirms the M0 rationale from the other side: the
+   DuckDB-specific cases that need retrieval are exactly the ones the bad prompt fails.
+2. **Judge-vs-execution agreement 9/9, and the one disagreement was execution's test bug.**
+   On g01 the model returned the correct rows with an extra column; the too-strict `expected`
+   made execution FAIL while the judge (correctly) PASSED. Execution is objective about "do
+   these rows match", but *what rows to expect* is a human judgment that can be wrong — and
+   the judge caught it. Both signals are kept; a config that games the judge but fails
+   execution is the M5 reward-hacking this pairing defends against.
+
+Caveats: 12 cases (mechanism proven, threshold is a starting guess); the ASOF case fails green
+too (a real retrieval miss, left honest); the judge is calibrated against execution, not
+humans (better than humans for SQL, unaudited on free prose).
+
 ---
 
 ## Milestone 5 — The self-improvement flywheel (Week 15–22) — THE CORE
@@ -292,7 +322,11 @@ optional** — the project stands alone on the laptop without it.
       redaction, injection block, unsafe-SQL gate), SQLite trace store + CLI viewer, ordered
       provider failover with a dead-primary test. Live run: every gate fired, $0.11, 165 tests.
       Finding: redaction protects the secret but can make the model misdiagnose the request.
-- [ ] M4 Eval harness — CI gate proven red/green
+- [x] **M4 Eval harness — done 2026-07-22.** Online scorers + execution oracle + LLM-judge +
+      12-case golden set + CI gate (PR-only). Gate flips 92% green → 67% red on a bad prompt.
+      Judge-vs-execution 9/9 (the one disagreement was a too-strict golden case, judge caught
+      it). Finding: an execution-only gate misses grounding regressions; you need citation
+      cases too. 193 tests.
 - [ ] M5 Flywheel — one automated promote cycle
 - [ ] M6 Improvement curve — the headline chart
 - [ ] M7 Product surface — deployed demo + recording

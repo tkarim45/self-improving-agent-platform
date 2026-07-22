@@ -1,0 +1,98 @@
+# Golden eval set — DuckDB support agent (Milestone 4).
+#
+# Three kinds of case, deliberately mixed:
+#
+#   exec      — the answer should contain SQL that, run against `setup`, reproduces `expected`.
+#               This is OBJECTIVE ground truth: execution decides, not a model. It is the M0
+#               rationale realized — SQL answers are checkable, which is what lets M4 calibrate
+#               the LLM-judge against an oracle rather than a subjective label.
+#   reference — the answer should cite at least one of `expect_pages` (page-level, like M1).
+#   abstain   — the docs cannot answer this; a correct answer says so. Guards against a model
+#               that invents an answer to look helpful.
+#
+# Every `expected` block below was verified by running its reference query before committing
+# (see the M4 build log). Start small and honest: 12 cases, not the 50–100 the plan floats —
+# a golden set is only worth its size if every case is genuinely checkable.
+
+corpus: duckdb-web@89998bfe4a0c docs/current
+tenant: duckdb
+
+cases:
+  # --- execution-verified (objective) ---------------------------------------------------
+
+  - id: g01_qualify
+    kind: exec
+    question: "Keep the top 2 rows by score using a window function, no subquery. Given a table t(name, score), show the SQL returning name and score."
+    setup: "CREATE TABLE t(name TEXT, score INT); INSERT INTO t VALUES ('a',3),('b',1),('c',2)"
+    expected: [["a", 3], ["c", 2]]
+    note: >
+      exercises QUALIFY + row_number. Expected widened from [name] to [name, score] after the
+      M4 live run: the model returned SELECT name, score (the correct rows, extra column), and
+      the too-strict expected made execution reject a correct answer while the judge passed it.
+      That disagreement was execution's test-design bug, not a judge hallucination.
+
+  - id: g02_unnest
+    kind: exec
+    question: "How do I expand the list [10, 20, 30] into one row per element? Show the SQL."
+    setup: ""
+    expected: [[10], [20], [30]]
+
+  - id: g03_list_agg
+    kind: exec
+    question: "Aggregate values into a sorted list per group. Given g(k, v), collect v ordered per k. Show the SQL."
+    setup: "CREATE TABLE g(k TEXT, v INT); INSERT INTO g VALUES ('a',1),('a',2),('b',3)"
+    expected: [["a", [1, 2]], ["b", [3]]]
+
+  - id: g04_string_split
+    kind: exec
+    question: "Split the string 'a,b,c' on commas into a list. Show the SQL."
+    setup: ""
+    expected: [[["a", "b", "c"]]]
+
+  - id: g05_regexp_extract
+    kind: exec
+    question: "Extract the numeric part from 'order-12345' with a regular expression. Show the SQL."
+    setup: ""
+    expected: [["12345"]]
+
+  - id: g06_star_exclude
+    kind: exec
+    question: "Select every column except b from a table w(a, b, c). Show the SQL."
+    setup: "CREATE TABLE w(a INT, b INT, c INT); INSERT INTO w VALUES (1,2,3)"
+    expected: [[1, 3]]
+
+  - id: g07_coalesce
+    kind: exec
+    question: "Return the first non-null of NULL, NULL, 'x'. Show the SQL."
+    setup: ""
+    expected: [["x"]]
+
+  - id: g08_range_count
+    kind: exec
+    question: "Generate the integers 1 through 5 and count them. Show the SQL that returns the count."
+    setup: ""
+    expected: [[5]]
+
+  # --- reference (page-level citation) --------------------------------------------------
+
+  - id: g09_pivot_ref
+    kind: reference
+    question: "How do I rotate distinct values of a column into their own columns?"
+    expect_pages: [sql/statements/pivot.md]
+
+  - id: g10_asof_ref
+    kind: reference
+    question: "Match each trade to the most recent price recorded at or before its timestamp."
+    expect_pages: [guides/sql_features/asof_join.md]
+
+  - id: g11_secret_ref
+    kind: reference
+    question: "Where do I store my S3 access credentials so DuckDB can read from a bucket?"
+    expect_pages: [configuration/secrets_manager.md, sql/statements/create_secret.md]
+
+  # --- abstention (docs cannot answer) --------------------------------------------------
+
+  - id: g12_abstain
+    kind: abstain
+    question: "What is the exact P99 query latency of DuckDB running on an AWS m7g.16xlarge instance with 200 concurrent users?"
+    note: no such benchmark is in the docs; a good answer says so rather than inventing a number

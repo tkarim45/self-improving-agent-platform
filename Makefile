@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces dev clean
+.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -36,6 +36,13 @@ agent-dry: ## Exercise the agent plumbing with the fake provider (no spend)
 traces: ## View persisted request traces (python -m src.ops traces|summary|show <id>)
 	$(PY) -m src.ops summary --db data/traces.db
 	$(PY) -m src.ops traces --db data/traces.db
+
+golden: ## Golden gate in replay mode (deterministic, free — the CI gate)
+	$(PY) -m src.eval golden --replay eval/golden/records.json --threshold 0.75
+
+golden-live: ## Golden gate for real on Bedrock, with the LLM-judge (SPENDS ~$0.30)
+	$(PY) -m src.eval golden --live --judge --threshold 0.75 \
+		--records-out eval/golden/records.json --out eval/golden/report_good.md
 
 eval: ## Run the labeled retrieval eval (fast arms only)
 	$(PY) -m src.eval retrieval --tenant $(TENANT) --out eval/retrieval/report.md

@@ -1,0 +1,47 @@
+name: eval-gate
+
+# The CI quality gate. Runs on every PR and push to main.
+#
+# It runs the OFFLINE suite plus the golden gate in REPLAY mode — scoring a frozen set of
+# recorded answers against the golden cases with the deterministic checks (execution +
+# reference + abstention). This is free, needs no cloud secrets, and catches regressions in
+# the scoring/execution code and in any deterministic config.
+#
+# The LIVE quality gate — actually running the agent on real Bedrock and scoring with the
+# LLM-judge — is deliberately NOT here: it spends money and needs credentials, so it belongs
+# in a manual/nightly job, not on every PR. The replay gate proves the gate MECHANISM; the
+# live gate (see `make golden-live`) proves current quality.
+
+# Pull requests only — deliberately NOT triggered on push to main. The gate reviews proposed
+# changes before they land; re-running it on the post-merge main commit is redundant.
+# `workflow_dispatch` keeps a manual "Run workflow" button for on-demand runs.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (core deps only — no model download)
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pydantic pyyaml rank-bm25 faiss-cpu duckdb pytest ruff
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Offline test suite
+        run: pytest -q
+
+      - name: Golden gate (replay — deterministic, free)
+        run: |
+          python -m src.eval golden \
+            --replay eval/golden/records.json \
+            --threshold 0.75

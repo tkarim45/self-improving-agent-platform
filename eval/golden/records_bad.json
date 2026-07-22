@@ -1,0 +1,98 @@
+[
+  {
+    "id": "g01_qualify",
+    "answer": "Here's the SQL using a window function to keep the top 2 rows by score:\n\n```sql\nSELECT name, score\nFROM t\nWHERE ROW_NUMBER() OVER (ORDER BY score DESC) <= 2\n```\n\nThis uses `ROW_NUMBER()` to rank rows by score in descending order, then filters to keep only rows where the rank is 2 or less. No subquery needed!",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": false,
+    "detail": "no candidate matched (1 tried)"
+  },
+  {
+    "id": "g02_unnest",
+    "answer": "Here's the SQL to expand a list into one row per element:\n\n```sql\nSELECT UNNEST([10, 20, 30]) AS value;\n```\n\nThe `UNNEST()` function takes an array and expands it into multiple rows, one for each element. You can alias the result column with `AS value` (or whatever name you prefer).\n\nIf you want to include this expansion alongside other columns from a table, you can use it in a FROM clause:\n\n```sql\nSELECT id, UNNEST(my_array_column) AS expanded_value\nFROM my_table;\n```",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 3 row(s)"
+  },
+  {
+    "id": "g03_list_agg",
+    "answer": "Here's the SQL:\n\n```sql\nSELECT \n  k,\n  list_sort(list(v)) as sorted_values\nFROM g\nGROUP BY k\nORDER BY k;\n```\n\n**How it works:**\n- `list(v)` aggregates all values `v` per group into a list\n- `list_sort()` sorts each list in ascending order\n- `GROUP BY k` collects per group\n- `ORDER BY k` sorts the groups themselves (optional)\n\nIf you want descending order, use `list_sort(..., 'descending')`. You can also use `array_sort()` as an alternative to `list_sort()`.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 2 row(s)"
+  },
+  {
+    "id": "g04_string_split",
+    "answer": "Here's the SQL:\n\n```sql\nSELECT string_split('a,b,c', ',');\n```\n\nThis uses the `string_split()` function, which takes the string as the first argument and the delimiter as the second. It returns a list (array) with the elements: `['a', 'b', 'c']`.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 1 row(s)"
+  },
+  {
+    "id": "g05_regexp_extract",
+    "answer": "Here's the SQL:\n\n```sql\nSELECT regexp_extract('order-12345', '\\d+') AS numeric_part;\n```\n\nThe `regexp_extract()` function extracts the first match of the pattern from the string. The pattern `\\d+` matches one or more digits. In this case, it extracts `12345` from `'order-12345'`.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 1 row(s)"
+  },
+  {
+    "id": "g06_star_exclude",
+    "answer": "Here's the SQL to select every column except `b`:\n\n```sql\nSELECT a, c FROM w;\n```\n\nOr, if you prefer using the `EXCLUDE` clause (a DuckDB feature):\n\n```sql\nSELECT * EXCLUDE (b) FROM w;\n```\n\nBoth approaches work, but `SELECT * EXCLUDE (b)` is more convenient if the table has many columns and you just want to skip one or two.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 1 row(s)"
+  },
+  {
+    "id": "g07_coalesce",
+    "answer": "The SQL is:\n\n```sql\nSELECT COALESCE(NULL, NULL, 'x');\n```\n\n`COALESCE()` returns the first non-null value from its arguments, so it returns `'x'` in this case.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 1 row(s)"
+  },
+  {
+    "id": "g08_range_count",
+    "answer": "Here's the SQL that generates integers 1 through 5 and counts them:\n\n```sql\nSELECT COUNT(*) as count FROM range(1, 6)\n```\n\nThis uses DuckDB's `range()` function to generate integers from 1 to 5 (note that the upper bound is exclusive, so we use 6), and then counts them with `COUNT(*)`, which returns **5**.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "matched 1 row(s)"
+  },
+  {
+    "id": "g09_pivot_ref",
+    "answer": "You can use a **pivot operation** to rotate distinct values of a column into their own columns. DuckDB supports this through the `PIVOT` clause.\n\nHere's the basic pattern:\n\n```sql\nSELECT * FROM source_table\nPIVOT (aggregation_function(value_column) FOR category_column IN (value1, value2, ...))\n```\n\nKey points:\n- **aggregation_function**: How to combine multiple values (e.g., `SUM`, `MAX`, `MIN`, `FIRST`, `ANY_VALUE`)\n- **value_column**: The column with values you want to rotate into new columns\n- **category_column**: The column containing the distinct values that become column names\n- **IN (...)**: List the distinct values explicitly, or use `SELECT DISTINCT` if you don't know them ahead of time\n\n**Example**: If you have sales data with product names in one column, you can pivot them into separate columns per product.\n\nIf you need to dynamically determine the distinct values without hardcoding them, DuckDB supports dynamic pivot syntax as well, though you'd typically use a two-step approach with string aggregation or construct the pivot statement dynamically.\n\nWould you like me to show you a concrete SQL example with sample data, or do you have a specific use case you're trying to solve?",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": false,
+    "detail": "cited none of ['sql/statements/pivot.md']"
+  },
+  {
+    "id": "g10_asof_ref",
+    "answer": "I'd be happy to help you match trades to their most recent prices! However, I need some details about your data:\n\n1. **What tables do you have?** (e.g., a `trades` table and a `prices` table?)\n2. **What are the column names?** (e.g., what's the timestamp column called in each table, what identifies the instrument/symbol)\n3. **Do you have sample data** you can share, or would you like me to show you the general approach?\n\nThe general SQL pattern for this is typically a `LEFT JOIN` with a condition like:\n```\nON trades.symbol = prices.symbol \nAND trades.timestamp >= prices.timestamp\nORDER BY prices.timestamp DESC\nLIMIT 1\n```\n\nBut I can give you the exact query once I understand your schema better. Or if you'd like, show me your tables and I can write the precise query!",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": false,
+    "detail": "cited none of ['guides/sql_features/asof_join.md']"
+  },
+  {
+    "id": "g11_secret_ref",
+    "answer": "You have a few options for storing S3 credentials that DuckDB can use:\n\n1. **Environment variables** \u2014 Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in your environment. DuckDB will automatically pick these up.\n\n2. **AWS credentials file** \u2014 DuckDB can read from the standard AWS credentials file at `~/.aws/credentials` (or `%USERPROFILE%\\.aws\\credentials` on Windows). It looks for a default profile or you can specify a specific profile.\n\n3. **Connection configuration** \u2014 Pass credentials directly when setting up the S3 connection:\n   ```\n   CREATE SECRET (TYPE S3, KEY_ID = '...', SECRET = '...')\n   ```\n\n4. **IAM roles** \u2014 If DuckDB is running on an AWS instance (EC2, Lambda, ECS, etc.), it can automatically use the instance's IAM role.\n\n5. **Temporary credentials** \u2014 You can also provide session tokens along with the key ID and secret for temporary credentials.\n\nThe environment variable approach is the simplest for local development, while the `CREATE SECRET` approach is good for more control within your DuckDB session. For production deployments on AWS infrastructure, using IAM roles is the most secure option since it avoids storing explicit credentials.",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": false,
+    "detail": "cited none of ['configuration/secrets_manager.md', 'sql/statements/create_secret.md']"
+  },
+  {
+    "id": "g12_abstain",
+    "answer": "I don't have access to that specific performance data. That kind of benchmark information would depend on:\n\n1. **What you're querying** \u2014 the query complexity, data size, and working set matter enormously\n2. **Your specific workload** \u2014 OLTP vs OLAP, read-heavy vs mixed, data types, indexes, etc.\n3. **How DuckDB is configured** \u2014 memory settings, threading, storage backend\n4. **When the benchmark was run** \u2014 DuckDB's performance improves with releases\n\nDuckDB doesn't publish official P99 latency numbers for specific AWS instance types and concurrent user counts. If you need this information, you'd want to:\n\n- Run your own benchmarks with your actual queries and data\n- Check DuckDB's benchmarking resources or community discussions\n- Look at TPC benchmarks if they're relevant to your workload\n\nIf you have a specific query or workload in mind, I'd be happy to help you optimize it or discuss DuckDB's performance characteristics in general!",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "abstained"
+  }
+]

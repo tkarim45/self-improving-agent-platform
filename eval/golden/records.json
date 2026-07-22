@@ -1,0 +1,332 @@
+[
+  {
+    "id": "g01_qualify",
+    "kind": "exec",
+    "question": "Keep only the top 2 rows by score using a window function, no subquery. Given a table t(name, score), show the SQL.",
+    "answer": "Use the `QUALIFY` clause with a window function to filter without a subquery:\n\n```sql\nSELECT name, score \nFROM t \nQUALIFY row_number() OVER (ORDER BY score DESC) <= 2;\n```\n\nThe `QUALIFY` clause allows you to filter based on window function results without needing a subquery [403bd30b848d]. Here, `row_number() OVER (ORDER BY score DESC)` [1f33c4e2c23f] assigns sequential numbers to rows ordered by score in descending order, and `QUALIFY` keeps only rows where that number is 2 or less.",
+    "cited_pages": [
+      "sql/functions/window_functions.md"
+    ],
+    "retrieved": [
+      "16e15a7dda27",
+      "1f33c4e2c23f",
+      "22ad9f54acd4",
+      "403bd30b848d",
+      "816b4fd9148b",
+      "98d1efe23ba9",
+      "d38e1ae2b663",
+      "e187bd92a4de",
+      "f13dac4fe87b",
+      "fee486170cc6"
+    ],
+    "passed": true,
+    "detail": "matched 2 row(s)",
+    "cost_usd": 0.020762000000000003,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.008925
+    }
+  },
+  {
+    "id": "g02_unnest",
+    "kind": "exec",
+    "question": "How do I expand the list [10, 20, 30] into one row per element? Show the SQL.",
+    "answer": "Use the `UNNEST` function to expand a list into one row per element [7569e0307148]:\n\n```sql\nSELECT unnest([10, 20, 30]);\n```\n\nThis produces three rows with values 10, 20, and 30 [7569e0307148]. You can also combine it with other columns\u2014scalar expressions in the same `SELECT` clause are repeated for every row emitted [7569e0307148]:\n\n```sql\nSELECT unnest([10, 20, 30]), 'constant_value';\n```",
+    "cited_pages": [
+      "sql/query_syntax/unnest.md"
+    ],
+    "retrieved": [
+      "101aeb2aa561",
+      "703f7b85c20b",
+      "7569e0307148",
+      "7c96c500ae65",
+      "8e801eca3d3f",
+      "b10943d340ec",
+      "cc23d696378b",
+      "cd4dbbea927c",
+      "d72977df9573",
+      "f7ade62daf47"
+    ],
+    "passed": true,
+    "detail": "matched 3 row(s)",
+    "cost_usd": 0.022072,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.009834
+    }
+  },
+  {
+    "id": "g03_list_agg",
+    "kind": "exec",
+    "question": "Aggregate values into a sorted list per group. Given g(k, v), collect v ordered per k. Show the SQL.",
+    "answer": "Use the `list()` aggregate function with an `ORDER BY` clause [c86eb89571c4]:\n\n```sql\nSELECT k, list(v ORDER BY v) as values_sorted\nFROM g\nGROUP BY k;\n```\n\nThis collects all values `v` into a list per group `k`, sorted in ascending order. The `ORDER BY` clause within the aggregate function is order-sensitive and ensures deterministic results [c86eb89571c4].\n\nIf you need descending order, use `ORDER BY v DESC`:\n\n```sql\nSELECT k, list(v ORDER BY v DESC) as values_sorted\nFROM g\nGROUP BY k;\n```",
+    "cited_pages": [
+      "sql/functions/aggregates.md"
+    ],
+    "retrieved": [
+      "101aeb2aa561",
+      "4ef4cf5c0e95",
+      "5a95f425be8e",
+      "907c917258ed",
+      "973ebcf0e712",
+      "afb5b55149b4",
+      "b7f489650809",
+      "c86eb89571c4",
+      "d46da9682f4f",
+      "d4ebb6ba56f1",
+      "d751e8756610",
+      "ea339255865d"
+    ],
+    "passed": true,
+    "detail": "matched 2 row(s)",
+    "cost_usd": 0.02946,
+    "judge": {
+      "faithfulness": 4,
+      "relevance": 5,
+      "completeness": 4,
+      "verdict": "pass",
+      "cost_usd": 0.013017
+    }
+  },
+  {
+    "id": "g04_string_split",
+    "kind": "exec",
+    "question": "Split the string 'a,b,c' on commas into a list. Show the SQL.",
+    "answer": "Perfect\u2014I now have the full passage showing the aliases. Here's the corrected answer:\n\nTo split a string into a list in DuckDB, use the `string_split()` function [675563de554a]:\n\n```sql\nSELECT string_split('a,b,c', ',') AS result;\n```\n\nThis returns: `['a', 'b', 'c']`\n\nThe function has aliases `split`, `str_split`, and `string_to_array` [675563de554a].",
+    "cited_pages": [
+      "sql/functions/text.md"
+    ],
+    "retrieved": [
+      "101aeb2aa561",
+      "675563de554a",
+      "93fc8eed5a93",
+      "9bd210f4d78b",
+      "ac031c1fd635",
+      "ce64c5fb8964",
+      "f1c509a548cf"
+    ],
+    "passed": true,
+    "detail": "matched 1 row(s)",
+    "cost_usd": 0.023731000000000002,
+    "judge": {
+      "faithfulness": 4,
+      "relevance": 5,
+      "completeness": 4,
+      "verdict": "pass",
+      "cost_usd": 0.007977
+    }
+  },
+  {
+    "id": "g05_regexp_extract",
+    "kind": "exec",
+    "question": "Extract the numeric part from 'order-12345' with a regular expression. Show the SQL.",
+    "answer": "To extract the numeric part from 'order-12345' using a regular expression, use the `regexp_extract` function with a capturing group [72197fd0bd50]:\n\n```sql\nSELECT regexp_extract('order-12345', '(\\d+)', 1) AS numeric_part;\n```\n\nThis returns `12345`. The pattern `(\\d+)` captures digits, where the parentheses create a capturing group. The third parameter `1` specifies that you want to extract the first capturing group [f95fd0566cad].\n\nDuckDB uses the RE2 library for regular expressions [714773c2e05b]. The documentation I can see does not explain the `\\d` pattern syntax itself\u2014for that detail, you can refer to the RE2 documentation.",
+    "cited_pages": [
+      "sql/functions/regular_expressions.md",
+      "sql/functions/text.md"
+    ],
+    "retrieved": [
+      "044ecb0dd9da",
+      "3c9ccb912a09",
+      "617d860e07a3",
+      "714773c2e05b",
+      "71d8c3c275fb",
+      "72197fd0bd50",
+      "9e1271461a45",
+      "a5e2ec2076ed",
+      "b782fb533ef9",
+      "e451e12db9c3",
+      "f1c509a548cf",
+      "f95fd0566cad"
+    ],
+    "passed": true,
+    "detail": "matched 1 row(s)",
+    "cost_usd": 0.035450999999999996,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.012201
+    }
+  },
+  {
+    "id": "g06_star_exclude",
+    "kind": "exec",
+    "question": "Select every column except b from a table w(a, b, c). Show the SQL.",
+    "answer": "The SQL to select every column except `b` from table `w` is:\n\n```sql\nSELECT * EXCLUDE (b) FROM w;\n```\n\nThis uses the `EXCLUDE` clause, which allows you to exclude specific columns from the `*` expression [3d160394490e].",
+    "cited_pages": [
+      "sql/expressions/star.md"
+    ],
+    "retrieved": [
+      "0e3a2211ab3d",
+      "3d160394490e",
+      "434c00dc7a89",
+      "adda564aa18b",
+      "b72f1dc245e9"
+    ],
+    "passed": true,
+    "detail": "matched 1 row(s)",
+    "cost_usd": 0.010936000000000001,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.004707
+    }
+  },
+  {
+    "id": "g07_coalesce",
+    "kind": "exec",
+    "question": "Return the first non-null of NULL, NULL, 'x'. Show the SQL.",
+    "answer": "Use the `coalesce` function, which returns the first non-null argument [7ece2829915f]:\n\n```sql\nSELECT coalesce(NULL, NULL, 'x');\n```\n\nResult: `x`",
+    "cited_pages": [
+      "sql/data_types/nulls.md"
+    ],
+    "retrieved": [
+      "7ece2829915f",
+      "8b38ffc3a7ca",
+      "ae9cd304bfb0",
+      "b4ef67015e23",
+      "d252be2f3cad"
+    ],
+    "passed": true,
+    "detail": "matched 1 row(s)",
+    "cost_usd": 0.013016,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.004689
+    }
+  },
+  {
+    "id": "g08_range_count",
+    "kind": "exec",
+    "question": "Generate the integers 1 through 5 and count them. Show the SQL that returns the count.",
+    "answer": "```sql\nSELECT COUNT(*) AS total FROM generate_series(1, 5);\n```\n\n| total |\n|------:|\n| 5 |\n\n`generate_series(1, 5)` produces the integers **1, 2, 3, 4, 5** \u2014 both endpoints are **inclusive** [b35e1f157fa5] \u2014 and wrapping it in `COUNT(*)` returns **5**. [c310ba578b94]\n\n> **Tip:** If you used `range(1, 5)` instead, you would only get four rows (1\u20134) because `range` treats the `stop` value as **exclusive**. [c310ba578b94]",
+    "cited_pages": [
+      "sql/functions/list.md"
+    ],
+    "retrieved": [
+      "2982829daad8",
+      "6037915582f6",
+      "b35e1f157fa5",
+      "c310ba578b94",
+      "ff4ba8530f6b"
+    ],
+    "passed": true,
+    "detail": "matched 1 row(s)",
+    "cost_usd": 0.037141999999999994,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.008124
+    }
+  },
+  {
+    "id": "g09_pivot_ref",
+    "kind": "reference",
+    "question": "How do I rotate distinct values of a column into their own columns?",
+    "answer": "Use the `PIVOT` statement to rotate distinct column values into their own columns [10cd6d400640]. DuckDB provides a simplified syntax that automatically detects which columns to create:\n\n```sql\nPIVOT <table> \nON <column_to_pivot> \nUSING <aggregate_expression> \nGROUP BY <rows_to_keep>;\n```\n\nThe `ON` clause specifies which column's distinct values become new column names. The `USING` clause defines how to aggregate the values in each new column (like `sum()`, `count()`, `max()`, etc.). The `GROUP BY` clause identifies the columns that will remain as rows [3168db38bb9e].\n\nIn the example above, the distinct values from the `product` column (`Product A` and `Product B`) each became their own column, with sales amounts aggregated by date.\n\nYou can also pivot multiple columns at once\u2014DuckDB will create columns for all combinations of distinct values [a3fffed846e7].",
+    "cited_pages": [
+      "sql/statements/pivot.md"
+    ],
+    "retrieved": [
+      "00acd81a2d65",
+      "0e3d4af9d7c7",
+      "10cd6d400640",
+      "2010887cfc99",
+      "3168db38bb9e",
+      "5d49e2e7aa6b",
+      "7e8528ba049a",
+      "a3fffed846e7",
+      "e764692107a4"
+    ],
+    "passed": true,
+    "detail": "cited ['sql/statements/pivot.md']",
+    "cost_usd": 0.012764
+  },
+  {
+    "id": "g10_asof_ref",
+    "kind": "reference",
+    "question": "Match each trade to the most recent price recorded at or before its timestamp.",
+    "answer": "I ran out of budget for this question before reaching an answer. The documentation I reached did not settle it.",
+    "cited_pages": [],
+    "retrieved": [
+      "0bd31a024c40",
+      "0f20c1645ddd",
+      "48def3520c4a",
+      "582d573c2edd",
+      "58dc4593401e",
+      "61ee63a09c2b",
+      "63a19f080487",
+      "6549f4727d6b",
+      "662f33e6b839",
+      "772ac2c83a63",
+      "8df991516a2d",
+      "91e8da6cc4dd",
+      "97444194957d",
+      "9edb34ddb896",
+      "ad0cdc5b57ae",
+      "b558c878d4c7",
+      "e642995ac343",
+      "fbb21bb05dcd"
+    ],
+    "passed": false,
+    "detail": "cited none of ['guides/sql_features/asof_join.md']",
+    "cost_usd": 0.057727
+  },
+  {
+    "id": "g11_secret_ref",
+    "kind": "reference",
+    "question": "Where do I store my S3 access credentials so DuckDB can read from a bucket?",
+    "answer": "You should store your S3 credentials in a **secret** within DuckDB [25f17a90ebb0]. The preferred approach is to use the `CREATE SECRET` statement with one of two providers:\n\n**Option 1: `config` provider (for static credentials)** [552616e30fc1]\n\nUse this when you have an access key ID and secret access key:\n\n```sql\nCREATE OR REPLACE SECRET secret (\n  TYPE s3,\n  PROVIDER config,\n  KEY_ID '\u27e8[AWS_ACCESS_KEY]\u27e9',\n  SECRET '\u27e8[AWS_SECRET_KEY]\u27e9',\n  REGION '\u27e8us-east-1\u27e9'\n);\n```\n\nThen query S3 files directly [552616e30fc1]:\n\n```sql\nSELECT * FROM 's3://\u27e8your-bucket\u27e9/\u27e8your_file\u27e9.parquet';\n```\n\n**Option 2: `credential_chain` provider (automatic)** [de35d40e4241]\n\nThis fetches credentials automatically using the AWS SDK from profiles, SSO, assumed roles, web identities, instance metadata, and more:\n\n```sql\nCREATE OR REPLACE SECRET secret (\n  TYPE s3,\n  PROVIDER credential_chain\n);\n```\n\n**Optional: Scope secrets to specific S3 paths** [1fe7013f7ee0]\n\nSecrets can have an optional scope, which is a file path prefix that the secret applies to. When fetching a secret for a path, the secret scopes are compared to the path, returning the matching secret [1fe7013f7ee0].",
+    "cited_pages": [
+      "configuration/secrets_manager.md",
+      "core_extensions/httpfs/s3api.md"
+    ],
+    "retrieved": [
+      "1fe7013f7ee0",
+      "25f17a90ebb0",
+      "552616e30fc1",
+      "711c016ad4c0",
+      "8425e98056c6",
+      "acfebe1fe026",
+      "d8ef1a090d94",
+      "de35d40e4241",
+      "eb2d099976d8"
+    ],
+    "passed": true,
+    "detail": "cited ['configuration/secrets_manager.md']",
+    "cost_usd": 0.028217
+  },
+  {
+    "id": "g12_abstain",
+    "kind": "abstain",
+    "question": "What is the exact P99 query latency of DuckDB running on an AWS m7g.16xlarge instance with 200 concurrent users?",
+    "answer": "The documentation I can see does not cover this.\n\nThis question asks for a specific benchmark figure (P99 query latency on an AWS m7g.16xlarge with 200 concurrent users), which is **not something DuckDB's official documentation contains**. Benchmark results depend on many variables \u2014 query type, data size, schema, workload mix, client library, network topology, DuckDB version, and configuration \u2014 and are not published as fixed reference numbers in the docs.\n\nHere is what I *can* help you with instead:\n\n1. **Running your own benchmark**: DuckDB works great with benchmarking tools. You can use the built-in timing features:\n   ```sql\n   PRAGMA enable_progress_bar;\n   SET threads = 64; -- tune for your instance\n   -- then run your queries and observe wall-clock time\n   ```\n\n2. **Concurrency configuration**: DuckDB is primarily designed for single-process analytical workloads. For concurrent multi-user scenarios, you'd want to look at DuckDB's settings like `max_memory`, `threads`, and potentially using a connection pool on top of it.\n\n3. **Community benchmarks**: The [DuckDB benchmark repository](https://github.com/duckdb/duckdb/tree/main/benchmark) and third-party comparisons (e.g., ClickBench) publish reproducible benchmark setups you can run yourself on your target hardware.\n\nIf you have a specific query or workload you'd like help optimizing for low latency in DuckDB, I'm happy to help with that!",
+    "cited_pages": [],
+    "retrieved": [],
+    "passed": true,
+    "detail": "abstained",
+    "cost_usd": 0.017509,
+    "judge": {
+      "faithfulness": 5,
+      "relevance": 5,
+      "completeness": 5,
+      "verdict": "pass",
+      "cost_usd": 0.005778
+    }
+  }
+]
