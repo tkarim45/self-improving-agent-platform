@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry dev clean
+.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -32,6 +32,10 @@ agent-baseline: ## Always-cheap baseline for the router comparison (spends money
 
 agent-dry: ## Exercise the agent plumbing with the fake provider (no spend)
 	$(PY) -m src.agent demo --dry-run
+
+traces: ## View persisted request traces (python -m src.ops traces|summary|show <id>)
+	$(PY) -m src.ops summary --db data/traces.db
+	$(PY) -m src.ops traces --db data/traces.db
 
 eval: ## Run the labeled retrieval eval (fast arms only)
 	$(PY) -m src.eval retrieval --tenant $(TENANT) --out eval/retrieval/report.md

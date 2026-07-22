@@ -70,6 +70,11 @@ def report(question: str, run: AgentRun, fake: bool) -> None:
     print("-" * 78)
     print(f"  tier        : {run.routing.tier}{'  (ESCALATED)' if run.routing.escalated else ''}")
     print(f"  routing     : {run.routing.reason}")
+    if run.guard_action != "allow":
+        events = "; ".join(
+            f"{e['stage']}:{','.join(e.get('signals', []))}" for e in run.guard_events
+        )
+        print(f"  guardrail   : {run.guard_action.upper()}  ({events})")
     print(f"  tools       : {', '.join(run.tool_calls) or 'none'}  ({run.iterations} iterations)")
     print(
         f"  grounding   : {len(rep.cited_ids)} cited, {len(rep.invalid_ids)} invalid, "
@@ -102,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--spend-limit", type=float, default=0.25, help="USD per question")
     parser.add_argument("--dry-run", action="store_true", help="fake provider, no spend")
     parser.add_argument("--out", default="", help="write run records as JSON here")
+    parser.add_argument("--trace-db", default="", help="persist traces to this SQLite db")
+    parser.add_argument("--ts", default="2026-07-22T00:00:00", help="base timestamp for traces")
     args = parser.parse_args(argv)
 
     config = AgentConfig(
@@ -130,8 +137,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"note: {STRONG.note}")
     print()
 
+    store = None
+    if args.trace_db:
+        from src.ops.trace_store import TraceStore
+
+        store = TraceStore(args.trace_db)
+
     records, total, t0 = [], 0.0, time.perf_counter()
-    for question in questions:
+    for i, question in enumerate(questions):
         # A fresh search tool per question — retrieved_ids is the citation whitelist and
         # must not leak passages from a previous question into this one's grounding check.
         agent, _ = build_agent(
@@ -143,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Q: {question}\n  FAILED: {type(exc).__name__}: {exc}\n")
             continue
         report(question, run, fake=args.dry_run)
+        if store is not None and run.trace is not None:
+            # Timestamps are passed in and incremented rather than read from the clock, so a
+            # replay produces the same ordering (datetime.now() is banned in this codebase).
+            store.write(
+                run.trace, ts=f"{args.ts[:10]}T00:{i:02d}:00", guard_action=run.guard_action
+            )
         total += run.cost["total_usd"]
         records.append(
             {
@@ -157,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
                 "cost": run.cost,
                 "latency_ms": run.trace.latency_ms,
                 "revised": run.revised,
+                "guard_action": run.guard_action,
+                "guard_events": run.guard_events,
             }
         )
 
@@ -169,7 +190,13 @@ def main(argv: list[str] | None = None) -> int:
         f"{'  [FABRICATED]' if args.dry_run else ''} | {time.perf_counter() - t0:.1f}s"
     )
     tiers = [r["tier"] for r in records]
-    print(f"tiers: {', '.join(tiers)}  (escalations: {sum(r['escalated'] for r in records)})")
+    guarded = sum(1 for r in records if r["guard_action"] != "allow")
+    print(f"tiers: {', '.join(tiers)}  (escalations: {sum(r['escalated'] for r in records)}, "
+          f"guardrail actions: {guarded})")
+
+    if store is not None:
+        store.close()
+        print(f"traces persisted to {args.trace_db}", file=sys.stderr)
 
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)

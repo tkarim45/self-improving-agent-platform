@@ -151,6 +151,33 @@ Steps:
 **Artifact:** a trace viewer (even CLI) showing per-request cost + latency; a test
 proving a prompt-injection attempt is blocked.
 
+**DONE 2026-07-22.** [`eval/agent/M3_FINDINGS.md`](../eval/agent/M3_FINDINGS.md). Trace viewer
+`python -m src.ops traces|summary|show`. Input/tool/output guardrails (secret + PII redaction,
+signature-based injection block, unsafe-SQL policy gate), per-request traces to SQLite (flat
+columns + loss-free JSON), and ordered provider failover with a dead-primary test. 165 tests.
+
+Live run (5 requests, real Bedrock, $0.11): every gate fired — injection **blocked at $0.00**
+(never reached the model, tier=none, still traced for mining), a pasted AWS key **redacted**
+before it reached the model or the trace, three clean questions grounded on the cheap tier.
+
+**The finding: redaction is not semantically free.** The secret question reached the model as
+"...KEY_ID '[AWS_ACCESS_KEY]' ... why does read_parquet 401?", and the model confidently
+misdiagnosed it — "you are passing the placeholder text literally" — answering a question the
+user never asked, created by the redaction. The secret genuinely never leaks (verified absent
+from the SQLite row including the JSON payload), but the placeholder reads to the model as
+literal user input. Load-bearing yet not free; the fix (signal that a redaction occurred) is
+an M4/M5 change once the judge can measure whether it helps.
+
+Design lines worth keeping: **IPv4 is deliberately not redacted** (a DuckDB question is full
+of host addresses; redact what is a secret, not what looks like a number), `SET`/`PRAGMA`/SQL
+comments are **not** injection signals (a technical corpus makes an over-eager detector worse
+than none), a `SpendLimitExceeded` is **not** failed over (the caller's budget, not a provider
+fault), and a plain bug propagates rather than being masked by trying the next provider.
+
+Caveats: the injection detector is signature-based (novel phrasings pass; indirect injection
+through retrieved content is undefended, low-risk only because the corpus is trusted docs),
+and the redaction-semantics finding rests on one live example.
+
 ---
 
 ## Milestone 4 — Continuous evaluation harness (Week 11–14)
@@ -261,7 +288,10 @@ optional** — the project stands alone on the laptop without it.
       citations with a grounding post-check, sandboxed DuckDB SQL tool, cost-aware router +
       escalation. 5/5 grounded, 0 invalid citations, $0.25. Router costs 2.7× always-cheap
       for no measurable grounding gain. 124 tests.
-- [ ] M3 Guardrails & tracing
+- [x] **M3 Guardrails & tracing — done 2026-07-22.** Input/tool/output guardrails (secret+PII
+      redaction, injection block, unsafe-SQL gate), SQLite trace store + CLI viewer, ordered
+      provider failover with a dead-primary test. Live run: every gate fired, $0.11, 165 tests.
+      Finding: redaction protects the secret but can make the model misdiagnose the request.
 - [ ] M4 Eval harness — CI gate proven red/green
 - [ ] M5 Flywheel — one automated promote cycle
 - [ ] M6 Improvement curve — the headline chart

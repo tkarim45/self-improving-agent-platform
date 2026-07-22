@@ -5,11 +5,19 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M2 of 8 done** (2026-07-21). Domain committed; ingestion, a
-measured retrieval stack, and a grounded tool-using agent run end to end against real AWS
-Bedrock; 124 offline tests pass. **No flywheel until M5**, and no judged answer quality until
-M4. Code lands milestone by milestone (see
+**Status:** 🔨 In build — **M0–M3 of 8 done** (2026-07-22). Domain committed; ingestion, a
+measured retrieval stack, a grounded tool-using agent, and a guardrail + tracing boundary all
+run end to end against real AWS Bedrock; 165 offline tests pass. **No judged answer quality
+until M4, no flywheel until M5.** Code lands milestone by milestone (see
 [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**Guardrails + tracing (M3):** input/tool/output gates (secret + PII redaction, injection
+block, unsafe-SQL policy), per-request traces to SQLite, and ordered provider failover. On a
+live run every gate fired — an injection **blocked at $0.00** before reaching the model, a
+pasted AWS key **redacted** before it hit the model or the trace. The finding: redaction is
+load-bearing but **not semantically free** — a bare `[AWS_ACCESS_KEY]` placeholder read to the
+model as literal user input and it misdiagnosed the question. Details in
+[`eval/agent/M3_FINDINGS.md`](eval/agent/M3_FINDINGS.md).
 
 **Agent today:** plan → retrieve → tool → critic, with inline citations checked against what
 was actually retrieved, a sandboxed DuckDB tool the agent uses to verify its own SQL, and a
@@ -134,6 +142,9 @@ make eval
 # 6. The agent. `agent-dry` costs nothing; `agent-demo` SPENDS on real Bedrock (~$0.25)
 make agent-dry
 set -a; source ~/.env; set +a && make agent-demo
+
+# 7. View persisted request traces (cost, latency, grounding, guard actions)
+make traces
 ```
 
 Every agent run is bounded three ways — a per-question spend limit that raises rather than

@@ -26,6 +26,7 @@ from src.agent.prompts import (
 )
 from src.agent.router import HeuristicRouter, RoutingDecision
 from src.agent.tools import RunSqlTool, SearchDocsTool, Tool
+from src.guardrails.policy import GuardDecision, InputGuard, OutputGuard, ToolGuard
 from src.interfaces import Agent
 from src.llm.base import CostMeter, LLMProvider
 from src.types import Answer, Citation, Trace
@@ -45,7 +46,8 @@ class AgentConfig:
     escalate_on_ungrounded: bool = True
     spend_limit_usd: float = 1.00
     router: str = "heuristic"
-    version: str = "m2"
+    guardrails: bool = True
+    version: str = "m3"
 
 
 @dataclass
@@ -61,6 +63,10 @@ class AgentRun:
     iterations: int = 0
     tool_calls: list[str] = field(default_factory=list)
     cost: dict[str, Any] = field(default_factory=dict)
+    guard_input: GuardDecision | None = None
+    guard_output: GuardDecision | None = None
+    guard_events: list[dict] = field(default_factory=list)
+    guard_action: str = "allow"  # allow | redact | block, whichever the boundary applied
     # Set when a conversation hit `max_iterations` without the model finishing. Tracked
     # separately from "ungrounded" because they are different failures: an ungrounded answer
     # is a reasoning problem, exhaustion is a control problem. Escalating on exhaustion runs
@@ -86,6 +92,10 @@ class GroundedAgent(Agent):
         self.tools: dict[str, Tool] = {search_tool.name: search_tool}
         if sql_tool is not None:
             self.tools[sql_tool.name] = sql_tool
+        self.input_guard = InputGuard()
+        self.tool_guard = ToolGuard()
+        self.output_guard = OutputGuard()
+        self._run: AgentRun | None = None  # current run, for guard-event logging in dispatch
 
     def _schemas(self) -> list[dict[str, Any]]:
         return [t.schema() for t in self.tools.values()]
@@ -94,6 +104,16 @@ class GroundedAgent(Agent):
         tool = self.tools.get(name)
         if tool is None:
             return f"Error: no tool named {name!r}. Available: {sorted(self.tools)}."
+        if self.config.guardrails:
+            decision = self.tool_guard.check(name, arguments)
+            if decision.blocked:
+                if self._run is not None:
+                    self._run.guard_events.append(
+                        {"stage": "tool", "tool": name} | decision.to_dict()
+                    )
+                # Returned as a tool result the model can react to, not an exception — the
+                # model should learn to stop reaching for blocked SQL.
+                return f"Blocked by policy: {decision.reason}"
         try:
             return tool.run(**arguments).content
         except TypeError as exc:
@@ -164,13 +184,23 @@ class GroundedAgent(Agent):
 
     def run_detailed(self, query: str, tenant: str = "duckdb") -> AgentRun:
         run = AgentRun()
+        self._run = run
         meter = CostMeter(spend_limit_usd=self.config.spend_limit_usd)
         t0 = time.perf_counter()
 
-        run.routing = self.router.route(query)
+        # INPUT GUARD. Redaction happens here, before the query reaches the model OR the
+        # trace, so a pasted credential never enters the context or the persisted record.
+        agent_query = query
+        if self.config.guardrails:
+            run.guard_input = self.input_guard.check(query)
+            agent_query = run.guard_input.text  # redacted; equals query when nothing matched
+            if run.guard_input.blocked:
+                return self._blocked_run(run, query, agent_query, tenant, t0)
+
+        run.routing = self.router.route(agent_query)
         tier = run.routing.tier
 
-        messages: list[dict[str, Any]] = [{"role": "user", "content": query}]
+        messages: list[dict[str, Any]] = [{"role": "user", "content": agent_query}]
         answer = self._converse(messages, tier, meter, run)
 
         report = cite.check(answer, self.search.retrieved_ids)
@@ -196,14 +226,27 @@ class GroundedAgent(Agent):
                 escalated=True,
             )
             tier = "strong"
-            messages = [{"role": "user", "content": query}]
+            messages = [{"role": "user", "content": agent_query}]
             answer = self._converse(messages, tier, meter, run)
             report = cite.check(answer, self.search.retrieved_ids)
 
         if self.config.critic and report.cited_ids and meter.calls < self.config.max_llm_calls:
             answer, report, run.critique, run.revised = self._critique(
-                query, answer, messages, tier, meter, run
+                agent_query, answer, messages, tier, meter, run
             )
+
+        # OUTPUT GUARD. Strips any secret the model echoed and catches a system-prompt leak,
+        # before the answer is returned or persisted.
+        guard_action = "allow"
+        if run.guard_input and run.guard_input.redacted:
+            guard_action = "redact"
+        if self.config.guardrails:
+            run.guard_output = self.output_guard.check(answer)
+            if run.guard_output.action != "allow":
+                answer = run.guard_output.text
+                report = cite.check(answer, self.search.retrieved_ids)
+                guard_action = run.guard_output.action
+                run.guard_events.append({"stage": "output"} | run.guard_output.to_dict())
 
         run.answer = answer
         run.citation_report = report
@@ -211,7 +254,7 @@ class GroundedAgent(Agent):
         run.trace = Trace(
             trace_id=uuid.uuid4().hex[:12],
             tenant=tenant,
-            query=query,
+            query=agent_query,  # redacted; the raw query is never persisted
             answer=answer,
             retrieved=sorted(self.search.retrieved_ids),
             citations=[Citation(chunk_id=c) for c in report.cited_ids],
@@ -225,6 +268,38 @@ class GroundedAgent(Agent):
             | {"escalated": float(run.routing.escalated), "exhausted": float(run.exhausted)},
             steps=[{"tool": t} for t in run.tool_calls],
         )
+        run.guard_action = guard_action
+        run.trace.scores["guard_action"] = 1.0 if guard_action != "allow" else 0.0
+        return run
+
+    def _blocked_run(
+        self, run: AgentRun, raw_query: str, redacted: str, tenant: str, t0: float
+    ) -> AgentRun:
+        """A query blocked at the input guard never reaches the model. It still produces a
+        trace — a blocked attempt is exactly what M5 wants to see, and the trace stores the
+        redacted text so the record of the block cannot itself leak a secret."""
+        decision = run.guard_input
+        run.answer = (
+            "I can't process that request. It looked like an attempt to override my "
+            "instructions. Ask me a DuckDB question instead and I'm glad to help."
+        )
+        run.routing = RoutingDecision(tier="none", reason="blocked at input guard", score=0.0)
+        run.citation_report = cite.check("", set())
+        run.cost = {
+            "calls": 0, "total_usd": 0.0, "by_tier": {}, "input_tokens": 0, "output_tokens": 0
+        }
+        run.guard_events.append({"stage": "input"} | (decision.to_dict() if decision else {}))
+        run.trace = Trace(
+            trace_id=uuid.uuid4().hex[:12],
+            tenant=tenant,
+            query=redacted,
+            answer=run.answer,
+            model_tier="none",
+            latency_ms=(time.perf_counter() - t0) * 1000,
+            config_version=self.config.version,
+            scores={"grounded": 0.0, "citation_rate": 0.0, "blocked": 1.0},
+        )
+        run.guard_action = "block"
         return run
 
     def _critique(
