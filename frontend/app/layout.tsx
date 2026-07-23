@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { AppHeader } from "@/components/app-header";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,31 +30,19 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <header className="border-b border-neutral-200 dark:border-neutral-800">
-          <nav className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-3 text-sm">
-            <span className="font-semibold tracking-tight">
-              self-improving-agent-platform
-            </span>
-            <Link href="/" className="hover:underline">
-              Chat
-            </Link>
-            <Link href="/dashboard" className="hover:underline">
-              Dashboard
-            </Link>
-            <a
-              href="https://github.com/tkarim45/self-improving-agent-platform"
-              className="ml-auto text-neutral-500 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              GitHub
-            </a>
-          </nav>
-        </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>
+      <body className="flex min-h-full flex-col">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider delay={200}>
+            <AppHeader />
+            <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+              {children}
+            </main>
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

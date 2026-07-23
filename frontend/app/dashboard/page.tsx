@@ -1,10 +1,30 @@
 "use client";
 
-// The admin console: live traffic summary, the M6 improvement curve, promotion history,
-// the golden gate, and recent traces. Read-only — it renders the same artifacts the CLIs
-// write, so what you see here is exactly what the repo measures.
+// Admin console. Evidence first: the M6 curve, the promotion log, the golden gate and
+// the trace table are the heroes; everything reads from the same artifacts the CLIs
+// write. Loading gets skeletons, absence gets an empty state that teaches the fix.
 
 import { useEffect, useState } from "react";
+import { ArrowUpCircle, MinusCircle, TerminalSquare } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StatusBadge } from "@/components/status-badge";
+import { ImprovementCurve } from "@/components/curve";
 import {
   api,
   type GoldenReport,
@@ -14,291 +34,321 @@ import {
   type WeeklyPoint,
 } from "../lib/api";
 
-// One measure per panel, shared x — never a dual-axis chart.
-const QUALITY = "#2a78d6";
-const COST = "#eb6834";
+type Load<T> = { state: "loading" } | { state: "ready"; data: T } | { state: "absent" };
 
-function Curve({ weekly }: { weekly: WeeklyPoint[] }) {
-  const W = 560;
-  const H = 120;
-  const PAD = { l: 44, r: 12, t: 10, b: 22 };
-  const iw = W - PAD.l - PAD.r;
-  const ih = H - PAD.t - PAD.b;
-  const promoWeeks = weekly
-    .map((w, i) => (w.cycle.promoted ? i : -1))
-    .filter((i) => i >= 0);
+function useLoad<T>(fn: () => Promise<T>): Load<T> {
+  const [v, setV] = useState<Load<T>>({ state: "loading" });
+  useEffect(() => {
+    fn()
+      .then((data) => setV({ state: "ready", data }))
+      .catch(() => setV({ state: "absent" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return v;
+}
 
-  const x = (i: number) =>
-    PAD.l + (weekly.length > 1 ? (i / (weekly.length - 1)) * iw : iw / 2);
-
-  function panel(
-    label: string,
-    values: number[],
-    color: string,
-    fmt: (v: number) => string,
-  ) {
-    const max = Math.max(...values) * 1.1 || 1;
-    const y = (v: number) => PAD.t + ih - (v / max) * ih;
-    const path = values.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(v)}`).join(" ");
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={label}>
-        <text x={PAD.l} y={PAD.t + 2} className="fill-neutral-500 text-[10px]">
-          {label}
-        </text>
-        {/* promotion marker(s) */}
-        {promoWeeks.map((i) => (
-          <line
-            key={i}
-            x1={x(i)}
-            x2={x(i)}
-            y1={PAD.t}
-            y2={PAD.t + ih}
-            stroke="currentColor"
-            className="text-neutral-300 dark:text-neutral-700"
-            strokeDasharray="3 3"
-          />
-        ))}
-        <path d={path} fill="none" stroke={color} strokeWidth={2} />
-        {values.map((v, i) => (
-          <g key={i}>
-            <circle cx={x(i)} cy={y(v)} r={4} fill={color} />
-            <title>{`week ${weekly[i].week}: ${fmt(v)} (${weekly[i].router_version})`}</title>
-          </g>
-        ))}
-        {values.map((_, i) => (
-          <text
-            key={i}
-            x={x(i)}
-            y={H - 6}
-            textAnchor="middle"
-            className="fill-neutral-400 text-[10px]"
-          >
-            w{weekly[i].week}
-          </text>
-        ))}
-        <text
-          x={PAD.l - 6}
-          y={y(values[0]) + 3}
-          textAnchor="end"
-          className="fill-neutral-400 text-[10px]"
-        >
-          {fmt(values[0])}
-        </text>
-        <text
-          x={W - PAD.r + 2}
-          y={y(values[values.length - 1]) + 3}
-          className="fill-neutral-500 text-[10px]"
-        >
-          {fmt(values[values.length - 1])}
-        </text>
-      </svg>
-    );
-  }
-
+function Stat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: React.ReactNode;
+  detail?: string;
+}) {
   return (
-    <div className="flex flex-col gap-1">
-      {panel(
-        "quality — grounded answers (%)",
-        weekly.map((w) => (100 * w.grounded) / w.n_queries),
-        QUALITY,
-        (v) => `${v.toFixed(0)}%`,
-      )}
-      {panel(
-        "cost per query (¢)",
-        weekly.map((w) => (100 * w.cost_usd) / w.n_queries),
-        COST,
-        (v) => `${v.toFixed(1)}¢`,
-      )}
-      {promoWeeks.length > 0 && (
-        <p className="text-xs text-neutral-400">
-          dashed line = automated promotion (week {promoWeeks.map((i) => weekly[i].week).join(", ")})
-        </p>
-      )}
+    <div className="flex flex-col gap-0.5 rounded-lg border bg-card px-4 py-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xl font-semibold tabular-nums">{value}</span>
+      {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
     </div>
   );
 }
 
-function Card({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function EmptyHint({ command, children }: { command: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-      <div className="text-xs uppercase tracking-wide text-neutral-400">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-neutral-500">{sub}</div>}
+    <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+      <TerminalSquare className="h-4 w-4" />
+      <p>{children}</p>
+      <code className="rounded bg-secondary px-2 py-1 font-mono text-xs">{command}</code>
     </div>
   );
 }
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [weekly, setWeekly] = useState<WeeklyPoint[] | null>(null);
-  const [promos, setPromos] = useState<Promotions | null>(null);
-  const [golden, setGolden] = useState<GoldenReport | null>(null);
-  const [traces, setTraces] = useState<TraceRow[]>([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.summary().then(setSummary).catch((e) => setError(String(e)));
-    api.weekly().then(setWeekly).catch(() => setWeekly(null)); // 404 until a sim has run
-    api.promotions().then(setPromos).catch(() => null);
-    api.golden().then(setGolden).catch(() => null);
-    api.traces(15).then(setTraces).catch(() => null);
-  }, []);
+  const summary = useLoad<Summary>(api.summary);
+  const weekly = useLoad<WeeklyPoint[]>(api.weekly);
+  const promos = useLoad<Promotions>(api.promotions);
+  const golden = useLoad<GoldenReport>(api.golden);
+  const traces = useLoad<TraceRow[]>(() => api.traces(15));
 
   return (
     <div className="flex flex-col gap-8">
-      <section>
-        <h1 className="text-xl font-semibold">Admin console</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Traffic, the improvement curve, promotion history and the eval gate — read from the
-          same artifacts the CLIs write.
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Admin console</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Traffic, the improvement curve, promotion history and the eval gate — read from
+          the same artifacts the CLIs write.
         </p>
-        {error && <p className="mt-2 text-sm text-red-600">backend unreachable: {error}</p>}
-      </section>
+      </div>
 
-      {summary && (
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Card label="requests" value={String(summary.n)} />
-          <Card
-            label="grounded rate"
-            value={`${(100 * summary.grounded_rate).toFixed(0)}%`}
-          />
-          <Card
-            label="total cost"
-            value={`$${summary.total_cost.toFixed(3)}`}
-            sub={`mean $${summary.mean_cost.toFixed(4)}/query`}
-          />
-          <Card
-            label="guardrail actions"
-            value={String(summary.blocks + summary.redactions)}
-            sub={`${summary.blocks} blocked · ${summary.redactions} redacted`}
-          />
-        </section>
-      )}
-
-      <section>
-        <h2 className="mb-2 font-medium">The improvement curve (M6)</h2>
-        {weekly ? (
-          <Curve weekly={weekly} />
-        ) : (
-          <p className="text-sm text-neutral-400">
-            No simulation artifact yet — run <code>make sim</code> in backend/.
-          </p>
+      {/* traffic summary */}
+      <section aria-label="Traffic summary">
+        {summary.state === "loading" && (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-[74px] rounded-lg" />
+            ))}
+          </div>
+        )}
+        {summary.state === "absent" && (
+          <EmptyHint command="cd backend && make api">
+            Backend unreachable — start it, then reload.
+          </EmptyHint>
+        )}
+        {summary.state === "ready" && (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Requests traced" value={summary.data.n} />
+            <Stat
+              label="Grounded rate"
+              value={`${(100 * summary.data.grounded_rate).toFixed(0)}%`}
+              detail={`${(100 * summary.data.mean_citation_rate).toFixed(0)}% of claims cited`}
+            />
+            <Stat
+              label="Total cost"
+              value={`$${summary.data.total_cost.toFixed(3)}`}
+              detail={`mean $${summary.data.mean_cost.toFixed(4)} / query`}
+            />
+            <Stat
+              label="Guardrail actions"
+              value={summary.data.blocks + summary.data.redactions}
+              detail={`${summary.data.blocks} blocked · ${summary.data.redactions} redacted · ${summary.data.escalations} escalations`}
+            />
+          </div>
         )}
       </section>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h2 className="mb-2 font-medium">Promotion history (M5)</h2>
-          {promos && (
-            <>
-              <p className="mb-2 text-sm text-neutral-500">
+      {/* the curve */}
+      <Card>
+        <CardHeader>
+          <CardTitle>The improvement curve</CardTitle>
+          <CardDescription>
+            Six unattended simulated weeks on real Bedrock — quality held while the
+            flywheel cut cost 54% at the week-3 promotion. $1.77 total.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {weekly.state === "loading" && <Skeleton className="h-64 w-full" />}
+          {weekly.state === "absent" && (
+            <EmptyHint command="cd backend && make sim">
+              No simulation artifact yet. Run the six-week simulation (spends ~$2 on
+              Bedrock) to produce weekly.json.
+            </EmptyHint>
+          )}
+          {weekly.state === "ready" && <ImprovementCurve weekly={weekly.data} />}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* promotions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Promotion history</CardTitle>
+            {promos.state === "ready" && (
+              <CardDescription>
                 active router:{" "}
-                <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">
-                  {promos.active.router.version}
+                <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs">
+                  {promos.data.active.router.version}
                 </code>
-              </p>
-              <ul className="flex flex-col gap-1 text-sm">
-                {promos.entries.length === 0 && (
-                  <li className="text-neutral-400">no cycles recorded</li>
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {promos.state === "loading" && <Skeleton className="h-40 w-full" />}
+            {promos.state === "absent" && (
+              <EmptyHint command="cd backend && make flywheel-cycle">
+                No cycles recorded yet.
+              </EmptyHint>
+            )}
+            {promos.state === "ready" && (
+              <ol className="relative flex flex-col gap-4 border-l pl-5">
+                {promos.data.entries.length === 0 && (
+                  <li className="text-sm text-muted-foreground">no cycles recorded</li>
                 )}
-                {promos.entries.map((e, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span
-                      className={`mt-0.5 rounded px-1.5 text-xs font-medium ${
-                        e.promoted
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                          : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
-                      }`}
-                    >
-                      {e.promoted ? "PROMOTE" : "reject"}
+                {promos.data.entries.map((e, i) => (
+                  <li key={i} className="relative">
+                    <span className="absolute -left-[27px] top-0.5 bg-card">
+                      {e.promoted ? (
+                        <ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <MinusCircle className="h-4 w-4 text-muted-foreground/60" />
+                      )}
                     </span>
-                    <span className="text-neutral-600 dark:text-neutral-300">
-                      <span className="text-neutral-400">{e.ts.slice(0, 10)}</span>{" "}
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-sm font-medium">
+                        {e.promoted ? "Promoted" : "Rejected"}
+                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {e.ts.slice(0, 10)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 max-w-[60ch] text-sm text-muted-foreground">
                       {e.reason}
-                    </span>
+                    </p>
                   </li>
                 ))}
-              </ul>
-            </>
-          )}
-        </div>
+              </ol>
+            )}
+          </CardContent>
+        </Card>
 
-        <div>
-          <h2 className="mb-2 font-medium">Golden gate (M4)</h2>
-          {golden ? (
-            <>
-              <p className="text-sm">
-                <span
-                  className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                    golden.passed
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                  }`}
-                >
-                  {golden.passed ? "GREEN" : "RED"}
-                </span>{" "}
-                {(100 * golden.score).toFixed(0)}% vs threshold{" "}
-                {(100 * golden.threshold).toFixed(0)}%
-              </p>
-              <ul className="mt-2 grid grid-cols-2 gap-x-4 text-sm text-neutral-500">
-                {Object.entries(golden.by_kind).map(([kind, [p, n]]) => (
-                  <li key={kind}>
-                    {kind}: {p}/{n}
-                  </li>
+        {/* golden gate */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Golden gate</CardTitle>
+            <CardDescription>
+              Deterministic replay of the committed golden records — the same gate CI runs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {golden.state === "loading" && <Skeleton className="h-40 w-full" />}
+            {golden.state === "absent" && (
+              <EmptyHint command="cd backend && make golden-live">
+                No golden records yet.
+              </EmptyHint>
+            )}
+            {golden.state === "ready" && (
+              <>
+                <div className="flex items-center gap-3">
+                  <StatusBadge tone={golden.data.passed ? "good" : "bad"}>
+                    {golden.data.passed ? "GREEN" : "RED"}
+                  </StatusBadge>
+                  <span className="text-sm tabular-nums">
+                    {(100 * golden.data.score).toFixed(0)}% vs threshold{" "}
+                    {(100 * golden.data.threshold).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {Object.entries(golden.data.by_kind).map(([kind, [p, n]]) => (
+                    <div key={kind} className="flex items-center gap-3">
+                      <span className="w-20 text-sm text-muted-foreground">{kind}</span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${(100 * p) / n}%` }}
+                        />
+                      </div>
+                      <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                        {p}/{n}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    per-case results
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {golden.data.cases.map((c) => (
+                      <li key={c.id} className="flex items-start gap-2">
+                        <StatusBadge tone={c.passed ? "good" : "bad"} className="mt-0.5">
+                          {c.passed ? "pass" : "fail"}
+                        </StatusBadge>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {c.id}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={c.detail}>
+                          {c.detail}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* traces */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent traces</CardTitle>
+          <CardDescription>
+            Every request persisted to SQLite — redacted before it was written, never after.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {traces.state === "loading" && <Skeleton className="h-48 w-full" />}
+          {traces.state === "absent" && (
+            <EmptyHint command="cd backend && make api">Backend unreachable.</EmptyHint>
+          )}
+          {traces.state === "ready" && traces.data.length === 0 && (
+            <p className="py-4 text-sm text-muted-foreground">
+              No traces yet — ask something in Chat and it will show up here.
+            </p>
+          )}
+          {traces.state === "ready" && traces.data.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Query</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead>Grounded</TableHead>
+                  <TableHead>Guard</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Latency</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {traces.data.map((t) => (
+                  <TableRow key={t.trace_id}>
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                      {t.ts.replace("T", " ")}
+                    </TableCell>
+                    <TableCell className="max-w-[28ch] truncate" title={t.query}>
+                      {t.query}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone="neutral" icon="none">
+                        {t.model_tier.includes("sonnet") ? "strong" : "cheap"}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={t.grounded ? "good" : "warn"}>
+                        {t.grounded ? "yes" : "no"}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell>
+                      {t.guard_action === "allow" ? (
+                        <span className="text-xs text-muted-foreground">allow</span>
+                      ) : (
+                        <StatusBadge tone="bad" icon="guard">
+                          {t.guard_action}
+                        </StatusBadge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums">
+                      ${t.cost_usd.toFixed(4)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums">
+                      <Tooltip>
+                        <TooltipTrigger render={<span />}>
+                          {Math.round(t.latency_ms)} ms
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t.escalated ? "escalated to strong tier" : "served by first route"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </ul>
-            </>
-          ) : (
-            <p className="text-sm text-neutral-400">no golden records</p>
+              </TableBody>
+            </Table>
           )}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-2 font-medium">Recent traces (M3)</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-neutral-400">
-              <tr>
-                <th className="py-1 pr-3">ts</th>
-                <th className="py-1 pr-3">query</th>
-                <th className="py-1 pr-3">tier</th>
-                <th className="py-1 pr-3">grounded</th>
-                <th className="py-1 pr-3">guard</th>
-                <th className="py-1 pr-3 text-right">cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {traces.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-2 text-neutral-400">
-                    no traces yet — ask something in Chat
-                  </td>
-                </tr>
-              )}
-              {traces.map((t) => (
-                <tr
-                  key={t.trace_id}
-                  className="border-t border-neutral-100 dark:border-neutral-800"
-                >
-                  <td className="py-1.5 pr-3 whitespace-nowrap text-neutral-400">
-                    {t.ts}
-                  </td>
-                  <td className="max-w-xs truncate py-1.5 pr-3" title={t.query}>
-                    {t.query}
-                  </td>
-                  <td className="py-1.5 pr-3">{t.model_tier.includes("sonnet") ? "strong" : "cheap"}</td>
-                  <td className="py-1.5 pr-3">{t.grounded ? "✓" : "✗"}</td>
-                  <td className="py-1.5 pr-3">{t.guard_action}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">
-                    ${t.cost_usd.toFixed(4)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }
