@@ -14,9 +14,10 @@ networkx>=3.3
 anthropic[bedrock]>=0.40
 duckdb>=1.5          # the run_sql tool's sandboxed scratch database
 
-# Serving (Milestone 3+)
+# Serving (Milestone 7 API — python -m src.api)
 fastapi>=0.115
 uvicorn>=0.30
+httpx>=0.27      # fastapi TestClient transport
 
 # Dev
 pytest>=8.0

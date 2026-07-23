@@ -5,22 +5,24 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M6 of 8 done** (2026-07-23; M5 reranker fine-tune is a pending
-stage 2). Ingestion, a measured retrieval stack, a grounded tool-using agent, guardrails +
-tracing, a continuous eval harness with a CI gate, a closed self-improvement loop, and **the
-headline improvement curve** all run end to end against real AWS Bedrock; 225 offline tests
-pass. Code lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0–M6 of 8 done, M7 in progress** (2026-07-23; M5 reranker
+fine-tune is a pending stage 2). Ingestion, a measured retrieval stack, a grounded tool-using
+agent, guardrails + tracing, a continuous eval harness with a CI gate, a closed
+self-improvement loop, and **the headline improvement curve** all run end to end against real
+AWS Bedrock; 234 offline tests pass. M7 has landed its first slice: a **FastAPI backend**
+(`backend/src/api`) and a **Next.js chat UI + admin console** (`frontend/`). Code lands
+milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
 
 ## The headline
 
-![the improvement curve](eval/sim/curve.png)
+![the improvement curve](backend/eval/sim/curve.png)
 
 **Six simulated weeks of support traffic, no human in the retrain loop, $1.77 total:**
 quality held **92% → 92%** while cost fell **2.6¢ → 1.1¢ per query**. The flywheel rejected
 its candidate twice for insufficient evidence (the second rejection *triggered* the bounded
 shadow sample that produced the missing evidence), promoted at week 3 on measured lift, and
 then declined to churn when nothing further could be gained. Full analysis in
-[`eval/sim/FINDINGS.md`](eval/sim/FINDINGS.md).
+[`eval/sim/FINDINGS.md`](backend/eval/sim/FINDINGS.md).
 
 **The flywheel turned (M5 stage 1):** traces → failure mining → retrain → replay shadow →
 execution-oracle canary → promote-on-dominance, fully automated per cycle. Cycle 1 was
@@ -31,7 +33,7 @@ tier for **$0.87 and 11/14 grounded** while always-cheap delivered **$0.19 and 1
 grounded**. The first promotion is honestly a *demotion* — a declared-degenerate always-cheap
 policy that kills the router waste M2 measured manually. `--router active` serves whatever
 the log last promoted; rollback is one command. Details in
-[`eval/flywheel/FINDINGS.md`](eval/flywheel/FINDINGS.md).
+[`eval/flywheel/FINDINGS.md`](backend/eval/flywheel/FINDINGS.md).
 
 **Eval harness (M4):** online scorers on every trace, an **execution-based objective oracle**
 (SQL answers are checked by *running* them, not judged by a model), an LLM-judge calibrated
@@ -39,7 +41,7 @@ the log last promoted; rollback is one command. Details in
 on a deliberately-worse prompt. Two findings: a gate on execution alone would have missed the
 regression (the bad prompt collapsed citations, not SQL), and the one judge-vs-execution
 disagreement turned out to be the *golden case* being wrong, which the judge caught. Details in
-[`eval/golden/FINDINGS.md`](eval/golden/FINDINGS.md).
+[`eval/golden/FINDINGS.md`](backend/eval/golden/FINDINGS.md).
 
 **Guardrails + tracing (M3):** input/tool/output gates (secret + PII redaction, injection
 block, unsafe-SQL policy), per-request traces to SQLite, and ordered provider failover. On a
@@ -47,19 +49,19 @@ live run every gate fired — an injection **blocked at $0.00** before reaching 
 pasted AWS key **redacted** before it hit the model or the trace. The finding: redaction is
 load-bearing but **not semantically free** — a bare `[AWS_ACCESS_KEY]` placeholder read to the
 model as literal user input and it misdiagnosed the question. Details in
-[`eval/agent/M3_FINDINGS.md`](eval/agent/M3_FINDINGS.md).
+[`eval/agent/M3_FINDINGS.md`](backend/eval/agent/M3_FINDINGS.md).
 
 **Agent today:** plan → retrieve → tool → critic, with inline citations checked against what
 was actually retrieved, a sandboxed DuckDB tool the agent uses to verify its own SQL, and a
 cost-aware router. On 5 real questions: **5/5 grounded, 0 invalid citations, $0.25.** The
 headline finding is negative — **the router cost 2.7× an always-cheap baseline for no
 measurable grounding gain**, with one question consuming 75% of the run. Details in
-[`eval/agent/FINDINGS.md`](eval/agent/FINDINGS.md).
+[`eval/agent/FINDINGS.md`](backend/eval/agent/FINDINGS.md).
 
 **Retrieval today:** dense + link-graph boost, **R@1 0.371 / R@10 0.843 / MRR 0.573 at ~11 ms
 per query** on 35 labeled queries. Full numbers in
-[`eval/retrieval/report.md`](eval/retrieval/report.md), analysis in
-[`eval/retrieval/FINDINGS.md`](eval/retrieval/FINDINGS.md). Three results worth the click: a
+[`eval/retrieval/report.md`](backend/eval/retrieval/report.md), analysis in
+[`eval/retrieval/FINDINGS.md`](backend/eval/retrieval/FINDINGS.md). Three results worth the click: a
 naive equal-weight hybrid scored *worse* than dense alone; the cross-encoder reranker cost
 400–1,000× the latency and never once improved rank 1; and the link graph failed at the
 multi-hop job it was built for.
@@ -137,22 +139,27 @@ Full detail: [`docs/01-architecture.md`](docs/01-architecture.md).
 ```
 self-improving-agent-platform/
 ├── README.md
-├── .gitignore
-├── requirements.txt
 ├── docs/
 │   ├── 00-what-it-is.md      # problem, goals, success criteria
 │   ├── 01-architecture.md    # subsystems, data flow, interfaces
 │   ├── 02-build-plan.md      # ← phased, step-by-step milestones (build from here)
 │   └── 03-setup.md           # env, models, keys, first run
-├── src/                      # (created in Milestone 0)
-├── eval/                     # golden sets, judge configs, CI gate
-├── configs/                  # versioned agent/retrieval/router configs
-└── data/                     # gitignored; fetched by scripts
+├── backend/                  # the Python platform (everything M0–M6 measured)
+│   ├── src/                  # ingestion, retrieval, agent, guardrails, eval, flywheel, sim, api
+│   ├── tests/                # 234 offline tests — no network, no cloud spend
+│   ├── eval/                 # labeled sets, golden cases, FINDINGS per milestone
+│   ├── configs/              # promotion log, active config, promoted router artifacts
+│   ├── data/                 # gitignored; fetched by scripts
+│   ├── Makefile · requirements.txt · pyproject.toml
+├── frontend/                 # Next.js chat UI + admin console (M7)
 ```
 
 ## Quickstart (working today)
 
 ```bash
+# 0. Everything Python runs from backend/
+cd backend
+
 # 1. Env (personal conda env, never base; see ~/.claude/CLAUDE.md)
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate personal
 make install
@@ -163,7 +170,7 @@ make corpus
 # 3. Build the hybrid index (BM25 + FAISS)
 make ingest
 
-# 4. Tests: 124 offline, no network, no cloud spend
+# 4. Tests: 234 offline, no network, no cloud spend
 make test
 
 # 5. Retrieval eval (add eval-full for the slow cross-encoder arms)
@@ -182,7 +189,15 @@ make golden
 # 9. The flywheel. `flywheel-cycle` is free (replay shadow); `flywheel-traffic` SPENDS (~$1)
 make flywheel-cycle
 make flywheel-log
+
+# 10. The product surface (M7): FastAPI backend + Next.js frontend
+make api                       # http://127.0.0.1:8000 — dry-only unless SIAP_ALLOW_LIVE=1
+cd ../frontend && npm install && npm run dev   # http://localhost:3000 (chat + /dashboard)
 ```
+
+The API is **dry by default**: `POST /api/query` uses the fake provider (numbers labelled
+fabricated) unless the request asks `live: true` *and* the server was started with
+`SIAP_ALLOW_LIVE=1` — spending requires both the caller and the operator to opt in.
 
 Every agent run is bounded three ways — a per-question spend limit that raises rather than
 continuing, a run-wide model-call ceiling, and a search budget. All three were added because

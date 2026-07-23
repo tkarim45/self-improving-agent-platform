@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log sim sim-dry curve dev clean
+.PHONY: api help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log sim sim-dry curve dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -70,8 +70,12 @@ eval-full: ## Retrieval eval including the cross-encoder arms (slow: ~7s/query)
 	$(PY) -m src.eval retrieval --tenant $(TENANT) \
 		--reranker cross-encoder/ms-marco-MiniLM-L-6-v2 --out eval/retrieval/report.md
 
-dev: ## Run API + console (Milestone 3+)
-	@echo "not implemented until Milestone 3"
+api: ## Run the M7 FastAPI backend on :8000 (dry-only; SIAP_ALLOW_LIVE=1 to allow spend)
+	$(PY) -m src.api --reload
+
+dev: ## Run API + frontend hint
+	@echo "backend:  make api            (http://127.0.0.1:8000)"
+	@echo "frontend: cd ../frontend && npm run dev   (http://localhost:3000)"
 
 clean:
 	rm -rf data/index .pytest_cache **/__pycache__

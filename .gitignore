@@ -65,7 +65,7 @@ data/
 # `src/index/` source package, which shipped an M0 commit that could not import. Anchor
 # built indexes to where they actually live (data/ is already ignored wholesale above).
 *.faiss
-/data/index/
+/backend/data/index/
 .chroma/
 
 # --- Logs / traces ---
@@ -87,4 +87,4 @@ traces/
 
 # Promoted flywheel artifacts are config, not data — a clone must be able to serve the
 # active config, so configs/ is exempted from the *.bin rule above.
-!configs/candidates/*.bin
+!backend/configs/candidates/*.bin

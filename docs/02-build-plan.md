@@ -390,4 +390,11 @@ optional** — the project stands alone on the laptop without it.
       Bedrock ($1.77): quality 92%→92%, cost 2.6¢→1.1¢/q, promotion at week 3 after two
       correct rejections (the second of which triggered the shadow sample that provided the
       evidence). Post-promotion cycles declined to churn. 225 tests.
-- [ ] M7 Product surface — deployed demo + recording
+- [ ] **M7 Product surface — in progress (started 2026-07-23).** Repo restructured into
+      `backend/` (the whole Python platform) + `frontend/` (Next.js). Landed: a FastAPI
+      backend (`src/api` — query/traces/summary/promotions/sim/golden endpoints, dry-by-
+      default with a double opt-in for live spend, provider-injectable, 9 API tests) and a
+      Next.js chat UI (inline citation highlighting, tier/cost/grounding badges) + admin
+      console (summary cards, the M6 curve as two stacked single-axis panels, promotion
+      history, golden gate, recent traces). Remaining: docker-compose, multi-tenant
+      hardening, deployed demo + recording.
