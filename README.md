@@ -5,11 +5,22 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M5 stage 1 of 8 done** (2026-07-23). Domain committed;
-ingestion, a measured retrieval stack, a grounded tool-using agent, a guardrail + tracing
-boundary, a continuous eval harness with a CI gate, and now **a closed self-improvement loop**
-all run end to end against real AWS Bedrock; 216 offline tests pass. Code lands milestone by
-milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0–M6 of 8 done** (2026-07-23; M5 reranker fine-tune is a pending
+stage 2). Ingestion, a measured retrieval stack, a grounded tool-using agent, guardrails +
+tracing, a continuous eval harness with a CI gate, a closed self-improvement loop, and **the
+headline improvement curve** all run end to end against real AWS Bedrock; 225 offline tests
+pass. Code lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+## The headline
+
+![the improvement curve](eval/sim/curve.png)
+
+**Six simulated weeks of support traffic, no human in the retrain loop, $1.77 total:**
+quality held **92% → 92%** while cost fell **2.6¢ → 1.1¢ per query**. The flywheel rejected
+its candidate twice for insufficient evidence (the second rejection *triggered* the bounded
+shadow sample that produced the missing evidence), promoted at week 3 on measured lift, and
+then declined to churn when nothing further could be gained. Full analysis in
+[`eval/sim/FINDINGS.md`](eval/sim/FINDINGS.md).
 
 **The flywheel turned (M5 stage 1):** traces → failure mining → retrain → replay shadow →
 execution-oracle canary → promote-on-dominance, fully automated per cycle. Cycle 1 was

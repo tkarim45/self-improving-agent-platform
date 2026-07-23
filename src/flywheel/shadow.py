@@ -98,7 +98,9 @@ def shadow(
     per_query = []
 
     for query, tiers in obs.items():
-        row: dict[str, Any] = {"query": query[:60]}
+        # Full query kept: the shadow-sampling step re-runs unpriced queries live and needs
+        # the exact text, not a display truncation.
+        row: dict[str, Any] = {"query": query}
         for arm, router in (("incumbent", incumbent_router), ("candidate", candidate_router)):
             result = inc if arm == "incumbent" else cand
             choice = router.route(query).tier

@@ -1,0 +1,140 @@
+[
+  {
+    "week": 0,
+    "router_version": "heuristic-v0",
+    "n_queries": 12,
+    "grounded": 11,
+    "escalations": 0,
+    "cost_usd": 0.30696100000000004,
+    "tier_mix": {
+      "strong": 4,
+      "cheap": 8
+    },
+    "cycle": {
+      "ran": false,
+      "promoted": false,
+      "reason": "only 6 labeled examples; refusing to fit below 8 \u2014 a router trained on nothing is noise",
+      "dataset_size": 6,
+      "candidate_version": ""
+    },
+    "shadow_sampled": 0,
+    "shadow_cost_usd": 0.0,
+    "grounded_rate": 0.9167,
+    "cost_per_query": 0.02558
+  },
+  {
+    "week": 1,
+    "router_version": "heuristic-v0",
+    "n_queries": 12,
+    "grounded": 11,
+    "escalations": 0,
+    "cost_usd": 0.40736599999999995,
+    "tier_mix": {
+      "cheap": 8,
+      "strong": 4
+    },
+    "cycle": {
+      "ran": true,
+      "promoted": false,
+      "reason": "REJECT: holdout too small (3 < 5) to support a claim",
+      "dataset_size": 13,
+      "candidate_version": "router-2026-08-03T20-13ex"
+    },
+    "shadow_sampled": 1,
+    "shadow_cost_usd": 0.007284,
+    "grounded_rate": 0.9167,
+    "cost_per_query": 0.03395
+  },
+  {
+    "week": 2,
+    "router_version": "heuristic-v0",
+    "n_queries": 12,
+    "grounded": 12,
+    "escalations": 0,
+    "cost_usd": 0.32741699999999996,
+    "tier_mix": {
+      "strong": 4,
+      "cheap": 8
+    },
+    "cycle": {
+      "ran": true,
+      "promoted": false,
+      "reason": "REJECT: candidate made 1 choice(s) with no observed outcome \u2014 price them live before promoting",
+      "dataset_size": 17,
+      "candidate_version": "router-2026-08-04T20-17ex"
+    },
+    "shadow_sampled": 1,
+    "shadow_cost_usd": 0.024706,
+    "grounded_rate": 1.0,
+    "cost_per_query": 0.02728
+  },
+  {
+    "week": 3,
+    "router_version": "heuristic-v0",
+    "n_queries": 12,
+    "grounded": 11,
+    "escalations": 2,
+    "cost_usd": 0.370166,
+    "tier_mix": {
+      "cheap": 4,
+      "strong": 8
+    },
+    "cycle": {
+      "ran": true,
+      "promoted": true,
+      "reason": "PROMOTE: quality held (100% -> 100%) at 23% lower cost",
+      "dataset_size": 20,
+      "candidate_version": "router-2026-08-05T20-20ex"
+    },
+    "shadow_sampled": 0,
+    "shadow_cost_usd": 0.0,
+    "grounded_rate": 0.9167,
+    "cost_per_query": 0.03085
+  },
+  {
+    "week": 4,
+    "router_version": "router-2026-08-05T20-20ex",
+    "n_queries": 12,
+    "grounded": 10,
+    "escalations": 1,
+    "cost_usd": 0.19260800000000003,
+    "tier_mix": {
+      "cheap": 10,
+      "strong": 2
+    },
+    "cycle": {
+      "ran": true,
+      "promoted": false,
+      "reason": "REJECT: no measured lift on either axis",
+      "dataset_size": 28,
+      "candidate_version": "router-2026-08-06T20-28ex"
+    },
+    "shadow_sampled": 0,
+    "shadow_cost_usd": 0.0,
+    "grounded_rate": 0.8333,
+    "cost_per_query": 0.01605
+  },
+  {
+    "week": 5,
+    "router_version": "router-2026-08-05T20-20ex",
+    "n_queries": 12,
+    "grounded": 11,
+    "escalations": 1,
+    "cost_usd": 0.130878,
+    "tier_mix": {
+      "cheap": 11,
+      "strong": 1
+    },
+    "cycle": {
+      "ran": true,
+      "promoted": false,
+      "reason": "REJECT: no measured lift on either axis",
+      "dataset_size": 37,
+      "candidate_version": "router-2026-08-07T20-37ex"
+    },
+    "shadow_sampled": 0,
+    "shadow_cost_usd": 0.0,
+    "grounded_rate": 0.9167,
+    "cost_per_query": 0.01091
+  }
+]

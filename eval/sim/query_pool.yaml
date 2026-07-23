@@ -1,0 +1,75 @@
+# M6 usage-simulator query pool.
+#
+# Composition mirrors real support traffic: mostly lookups and how-tos, a slice of
+# reasoning-worded questions (some genuinely easy — the heuristic's known blind spot), a few
+# hard ones, and the occasional unanswerable. Weekly sampling is deterministic (hash-seeded
+# by week number) and samples WITH repetition across weeks, because real support traffic
+# repeats — the same questions come back every week.
+#
+# Queries reuse the M1/M5 pools plus paraphrases. None of them are golden-set questions —
+# the golden set stays a frozen canary, never traffic.
+
+categories:
+  lookup:          # short factual lookups; cheap tier territory
+    weight: 5
+    queries:
+      - how do I filter rows produced by a window function
+      - turn the distinct values of a column into separate columns
+      - collapse many columns back down into rows
+      - select every column apart from one I want to drop
+      - expand a list column so each element becomes its own row
+      - quick min max and average for every column in a table at once
+      - open a second database file in the same session
+      - define a reusable function of my own
+      - grab a random subset of rows for testing
+      - extract a substring using a pattern
+      - print a timestamp in a custom layout like dd/mm/yyyy
+      - what tables exist in this database
+      - save query results into a parquet file
+      - apply an expression to every element of a list
+
+  howto:           # task-shaped, still doc-answerable
+    weight: 4
+    queries:
+      - match each trade to the most recent price recorded before it
+      - my query keeps dying because it runs out of memory
+      - run sql directly against a pandas dataframe
+      - search a text column for relevance ranked matches
+      - where do I put my access key so it can reach cloud storage
+      - my csv has malformed lines and the load aborts
+      - write output split into folders by column value
+      - query a folder laid out as key=value directories
+      - pull tables from an existing postgres server
+      - walk a parent child hierarchy of arbitrary depth
+      - insert a row but update it instead if the key already exists
+      - read a hive partitioned parquet dataset stored in an s3 bucket
+      - export a query result as partitioned parquet to s3
+
+  reasoning_worded:  # "compare/why/difference" phrasing, mostly doc-answerable — the
+    weight: 3        # heuristic misroutes these strong; the flywheel's learnable surface
+    queries:
+      - what is the difference between UNION and UNION ALL
+      - compare VARCHAR and TEXT column types, which should I use
+      - why does my CSV import guess the wrong column types and how do I override it
+      - which is better for exporting, parquet or csv, and how do I write each
+      - why use QUALIFY instead of a subquery to filter window functions
+      - why is my timestamp printed in the wrong format and how do I change it
+      - what is the difference between a view and a table and how do I create a view
+      - compare INTEGER and BIGINT ranges in DuckDB
+      - why does ORDER BY not persist when I create a table from a query
+      - difference between DELETE and TRUNCATE and when to use each
+      - why would I use a prepared statement instead of string interpolation
+      - why does my GROUP BY complain about columns not in the aggregate
+
+  hard:            # genuinely difficult; some beyond the docs
+    weight: 1
+    queries:
+      - why would a hash join be slower than a merge join here, and what would you check first
+      - my join is slow, what index would help and how do I verify it is used
+      - how do I profile which operator dominates runtime in a slow query
+
+  unanswerable:    # docs cannot answer; the right response is an abstention
+    weight: 1
+    queries:
+      - what is the exact P99 latency of DuckDB on an m7g.16xlarge with 200 concurrent users
+      - which cloud provider does the DuckDB team recommend for production deployments

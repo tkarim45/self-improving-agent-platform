@@ -303,6 +303,29 @@ Steps:
 
 **Artifact:** the before/after curve + a written finding. This is the portfolio piece.
 
+**DONE 2026-07-23.** [`eval/sim/curve.png`](../eval/sim/curve.png) +
+[`eval/sim/FINDINGS.md`](../eval/sim/FINDINGS.md). Six simulated weeks (12 queries/week,
+deterministic hash-seeded samples from a weighted pool, isolated state under `data/sim/`),
+served under whatever config the flywheel last promoted, one cycle per week, **no human in
+the loop. $1.77 total.**
+
+**The curve: quality 92% → 92%, cost 2.6¢ → 1.1¢/query** (weeks 0–3 heuristic: 93.8%
+grounded at $0.0294/q; weeks 4–5 promoted router: 87.5% at $0.0135/q — 54% cheaper). One
+promotion, week 3, annotated.
+
+**The unattended narrative is the artifact:** week-1 cycle rejected (holdout too small),
+week-2 rejected (one unpriced choice — which triggered the bounded shadow sample that priced
+it), week-3 promoted (quality held, −23% on its holdout), weeks 4–5 declined to churn ("no
+measured lift"). The rejection *caused* the evidence-gathering that enabled the promotion.
+The escalation net stays visible post-promotion (strong appears only when cheap fails), and
+each catch is a future training label.
+
+Honest notes: the 87.5% post-promotion grounding is ~1.5 answers below the pre rate at n=24 —
+not resolvable from noise, canary passed every cycle, but reported rather than smoothed
+(rollback exists if it persists at volume). Judge calibration was not re-run weekly (cost
+discipline; M4's 9/9 stands). Traffic is authored, 12 q/week is coarse (±8%), and one
+promotion is a step, not yet a trend — stage-2 components are what would extend it.
+
 ---
 
 ## Milestone 7 — Product surface & polish (Week 27–34)
@@ -363,5 +386,8 @@ optional** — the project stands alone on the laptop without it.
       cycle 2 promoted (quality held, −25% cost, live-shadow-priced). First promotion = a
       declared-degenerate always-cheap policy: the flywheel killing M2's measured router
       waste automatically. Rollback verified. Stage 2 (MLX reranker) pending. 216 tests.
-- [ ] M6 Improvement curve — the headline chart
+- [x] **M6 Improvement curve — done 2026-07-23.** Six unattended simulated weeks on real
+      Bedrock ($1.77): quality 92%→92%, cost 2.6¢→1.1¢/q, promotion at week 3 after two
+      correct rejections (the second of which triggered the shadow sample that provided the
+      evidence). Post-promotion cycles declined to churn. 225 tests.
 - [ ] M7 Product surface — deployed demo + recording

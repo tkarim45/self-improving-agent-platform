@@ -20,9 +20,7 @@ from pathlib import Path
 import yaml
 
 from src.flywheel import mining
-from src.flywheel.promote import PromotionLog, active_router
-from src.flywheel.router_train import RouterTrainer
-from src.flywheel.shadow import decide, shadow
+from src.flywheel.promote import PromotionLog
 from src.ops.trace_store import TraceStore
 
 # Traffic = the M1 labeled queries plus the M2 demo hard cases: realistic support questions
@@ -97,70 +95,28 @@ def cmd_mine(args) -> int:
     return 0
 
 
-def _canary_ok(candidate_router, args) -> tuple[bool, dict]:
-    """Frozen canary: replay the golden records; the candidate must not regress the gate.
-
-    The router cannot change a frozen answer, so replay checks that the candidate's
-    *machinery* (loading, routing on golden questions) works and the gate itself still
-    passes. A live canary (re-running the agent under the candidate) is the stronger check
-    and is what `--live-canary` does; replay is the free default.
-    """
-    from src.eval.golden import gate_from_records, load_cases, load_records
-
-    cases, _ = load_cases()
-    records = load_records(Path("eval/golden/records.json"))
-    report = gate_from_records(records, cases, threshold=0.75)
-    for case in cases:  # exercise the candidate router on every golden question
-        candidate_router.route(case["question"])
-    return report.passed, {"golden_score": report.score, "mode": "replay"}
-
-
 def cmd_cycle(args) -> int:
+    from src.flywheel.cycle import run_cycle
+
     store = TraceStore(args.db)
-    records = mining.mine(store, holdout_fraction=args.holdout)
-    summary = mining.summarize(records)
-    print("mined:", json.dumps(summary))
-
-    ds = mining.router_dataset(records)
-    print(f"router dataset: {len(ds)} examples {ds.label_counts}")
-
     log = PromotionLog()
-    if log.too_soon("router", args.ts, min_hours=args.min_hours):
-        print("SKIP: retrain-frequency cap — last promotion too recent")
-        return 0
-
-    trainer = RouterTrainer()
-    version = f"router-{args.ts[:10]}-{len(ds)}ex"
-    try:
-        candidate, info = trainer.train(ds, version)
-    except ValueError as exc:
-        print(f"SKIP: {exc}")
-        return 0
-    cfg = trainer.to_candidate(candidate, info, version)
-    print(f"trained candidate: {cfg.version} ({info})")
-
-    incumbent = active_router(log)
-    report = shadow(records, incumbent, candidate)
-    print("shadow:", json.dumps({k: v for k, v in report.to_dict().items() if k != "per_query"}))
-
-    canary_ok, canary_info = _canary_ok(candidate, args)
-    decision = decide(report, canary_ok, min_holdout=args.min_holdout)
-    print(f"decision: {decision.reason}")
-
-    entry = log.record(
+    result = run_cycle(
+        store,
+        log,
         ts=args.ts,
-        component="router",
-        candidate_version=cfg.version,
-        artifact=cfg.artifact_path,
-        decision=decision.to_dict() | {"canary": canary_info},
-        shadow=report.to_dict(),
-        promoted=decision.promote,
+        candidates_dir=Path("configs/candidates"),
+        holdout_fraction=args.holdout,
+        min_holdout=args.min_holdout,
+        min_hours=args.min_hours,
     )
-    print(("PROMOTED -> " if decision.promote else "logged (not promoted) -> ")
-          + str(log.log_path))
-    if decision.promote:
+    print(json.dumps(result.to_dict(), indent=2))
+    if result.unpriced_queries:
+        print("unpriced candidate choices (run these live to price them):")
+        for q, tier in result.unpriced_queries:
+            print(f"  [{tier}] {q[:70]}")
+    if result.promoted:
         print("active config:", json.dumps(log.active()["router"]))
-    return 0 if entry else 1
+    return 0
 
 
 def cmd_log(args) -> int:
