@@ -5,11 +5,22 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M4 of 8 done** (2026-07-22). Domain committed; ingestion, a
-measured retrieval stack, a grounded tool-using agent, a guardrail + tracing boundary, and a
-continuous eval harness with a CI gate all run end to end against real AWS Bedrock; 193 offline
-tests pass. **No self-improvement flywheel until M5.** Code lands milestone by milestone (see
-[`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0–M5 stage 1 of 8 done** (2026-07-23). Domain committed;
+ingestion, a measured retrieval stack, a grounded tool-using agent, a guardrail + tracing
+boundary, a continuous eval harness with a CI gate, and now **a closed self-improvement loop**
+all run end to end against real AWS Bedrock; 216 offline tests pass. Code lands milestone by
+milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+
+**The flywheel turned (M5 stage 1):** traces → failure mining → retrain → replay shadow →
+execution-oracle canary → promote-on-dominance, fully automated per cycle. Cycle 1 was
+**rejected** (no evidence of lift — logged, because a flywheel that only records wins is
+marketing). Cycle 2 **promoted**: quality held 100% → 100% at **−25% cost** on the holdout,
+priced by a live shadow A/B where the incumbent heuristic routed 14/14 queries to the strong
+tier for **$0.87 and 11/14 grounded** while always-cheap delivered **$0.19 and 14/14
+grounded**. The first promotion is honestly a *demotion* — a declared-degenerate always-cheap
+policy that kills the router waste M2 measured manually. `--router active` serves whatever
+the log last promoted; rollback is one command. Details in
+[`eval/flywheel/FINDINGS.md`](eval/flywheel/FINDINGS.md).
 
 **Eval harness (M4):** online scorers on every trace, an **execution-based objective oracle**
 (SQL answers are checked by *running* them, not judged by a model), an LLM-judge calibrated
@@ -156,6 +167,10 @@ make traces
 
 # 8. The eval gate. `golden` is free (replay); `golden-live` SPENDS on Bedrock (~$0.30)
 make golden
+
+# 9. The flywheel. `flywheel-cycle` is free (replay shadow); `flywheel-traffic` SPENDS (~$1)
+make flywheel-cycle
+make flywheel-log
 ```
 
 Every agent run is bounded three ways — a per-question spend limit that raises rather than

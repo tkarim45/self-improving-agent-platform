@@ -1,0 +1,7 @@
+{
+  "router": {
+    "kind": "learned",
+    "artifact": "configs/candidates/router_router-2026-07-23-32ex.bin",
+    "version": "router-2026-07-23-32ex"
+  }
+}

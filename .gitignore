@@ -84,3 +84,7 @@ traces/
 .vscode/
 .idea/
 *.swp
+
+# Promoted flywheel artifacts are config, not data — a clone must be able to serve the
+# active config, so configs/ is exempted from the *.bin rule above.
+!configs/candidates/*.bin

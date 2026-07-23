@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live dev clean
+.PHONY: help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log dev clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -43,6 +43,15 @@ golden: ## Golden gate in replay mode (deterministic, free — the CI gate)
 golden-live: ## Golden gate for real on Bedrock, with the LLM-judge (SPENDS ~$0.30)
 	$(PY) -m src.eval golden --live --judge --threshold 0.75 \
 		--records-out eval/golden/records.json --out eval/golden/report_good.md
+
+flywheel-traffic: ## Run the traffic batch through the agent, traced (SPENDS ~$1)
+	$(PY) -m src.flywheel traffic --live --db data/traces.db --ts $$(date -u +%Y-%m-%dT%H:%M:%S)
+
+flywheel-cycle: ## One flywheel pass: mine -> train -> shadow -> canary -> decide (free)
+	$(PY) -m src.flywheel cycle --db data/traces.db --ts $$(date -u +%Y-%m-%dT%H:%M:%S)
+
+flywheel-log: ## Promotion history + active config
+	$(PY) -m src.flywheel log
 
 eval: ## Run the labeled retrieval eval (fast arms only)
 	$(PY) -m src.eval retrieval --tenant $(TENANT) --out eval/retrieval/report.md

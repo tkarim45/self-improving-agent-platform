@@ -117,4 +117,20 @@ def get_router(name: str, threshold: float = 0.5):
         return HeuristicRouter(threshold=threshold)
     if name in (CHEAP, STRONG):
         return AlwaysRouter(name)
-    raise ValueError(f"unknown router {name!r}; expected 'heuristic', 'cheap', or 'strong'")
+    if name == "active":
+        # Whatever the flywheel last promoted (configs/active.json); falls back to the
+        # heuristic when nothing has been promoted. This is the hook that makes a promotion
+        # change production behaviour rather than just writing a log line.
+        from src.flywheel.promote import PromotionLog, active_router
+
+        return active_router(PromotionLog())
+    if name.startswith("learned:"):
+        from pathlib import Path
+
+        from src.flywheel.router_train import LearnedRouter
+
+        return LearnedRouter.load(Path(name.split(":", 1)[1]))
+    raise ValueError(
+        f"unknown router {name!r}; expected 'heuristic', 'cheap', 'strong', 'active', "
+        "or 'learned:<path>'"
+    )

@@ -256,6 +256,37 @@ Steps:
 **Artifact:** a promotion log showing at least one automated retrain→shadow→promote cycle
 that improved held-out score.
 
+**STAGE 1 DONE 2026-07-23** (router distillation; MLX-LoRA reranker is stage 2).
+[`eval/flywheel/FINDINGS.md`](../eval/flywheel/FINDINGS.md); the promotion log itself is
+[`configs/promotions.jsonl`](../configs/promotions.jsonl). Full loop, automated per cycle:
+traces → mine (failure modes, hash train/holdout split) → train → shadow (replay against
+*observed* per-tier outcomes, zero eval spend) → canary (the frozen M4 execution-oracle gate —
+the reward-hacking guard) → promote-on-dominance → active config → `--router active`.
+Rollback drill run and verified. 23 new tests (216 total). Flywheel spend $1.67 / 66 requests.
+
+**Cycle 1 REJECTED, correctly** — 38 organic-style queries produced zero "strong was needed"
+labels (both escalations failed on strong too: retrieval failures, not routing), and the
+holdout showed no lift. Logged, because a flywheel that only records wins is marketing.
+
+**Cycle 2 PROMOTED** — a live shadow A/B priced the heuristic's known weakness (14
+reasoning-worded but doc-answerable queries, both arms): heuristic routed **14/14 strong,
+$0.8747, 11/14 grounded**; always-cheap **$0.1920, 14/14 grounded**. Holdout: quality
+100%→100% at **−25% cost** → promoted. **The first promotion is a demotion**: the candidate is
+a *declared-degenerate* constant policy that names itself as such — the flywheel reaching M2's
+manual conclusion (the router's strong-routing was waste) automatically, and acting on it
+under guards. Also: **Sonnet grounded worse than Haiku** on the batch (fuller answers, more
+uncited claims, thinking-off tool reluctance).
+
+Design lines: replay-first shadow (unknown choices block promotion — "price them live");
+canary = execution oracle, checked before lift; structural hash-split contamination guard;
+dominance-only promotion; degenerate models declared, not dressed up; sub-8-example datasets
+refuse to fit.
+
+Caveats: the shadow batch was *authored* to probe the heuristic's weakness (proof of
+mechanism, not a production-savings rate — M6's simulator supplies organic volume); holdout
+n=14; grounding ≠ correctness; escalated-trace cost split (20/80) is the M2 ratio applied as
+an approximation; stage 2 (reranker fine-tune, hard-case golden growth) not yet trained.
+
 ---
 
 ## Milestone 6 — The improvement curve (Week 23–26) — THE HEADLINE
@@ -327,6 +358,10 @@ optional** — the project stands alone on the laptop without it.
       Judge-vs-execution 9/9 (the one disagreement was a too-strict golden case, judge caught
       it). Finding: an execution-only gate misses grounding regressions; you need citation
       cases too. 193 tests.
-- [ ] M5 Flywheel — one automated promote cycle
+- [x] **M5 Flywheel (stage 1) — done 2026-07-23.** Router distillation loop closed: mine →
+      train → shadow → canary → promote, all automated. Cycle 1 rejected (no evidence),
+      cycle 2 promoted (quality held, −25% cost, live-shadow-priced). First promotion = a
+      declared-degenerate always-cheap policy: the flywheel killing M2's measured router
+      waste automatically. Rollback verified. Stage 2 (MLX reranker) pending. 216 tests.
 - [ ] M6 Improvement curve — the headline chart
 - [ ] M7 Product surface — deployed demo + recording
