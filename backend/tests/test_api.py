@@ -136,3 +136,40 @@ def test_query_without_index_is_503_not_500(tmp_path):
     )
     r = TestClient(app).post("/api/query", json={"question": "q"})
     assert r.status_code == 503
+
+
+def test_demo_provider_grounds_answers_on_real_retrieval(tmp_path):
+    """The dry-mode default must produce a grounded, cited answer from the real index —
+    a canned refusal here made every demo answer ungrounded (and then escalate)."""
+    from src.llm.fake import retrieval_demo_provider
+
+    index = HybridIndex("duckdb", embedder_name="hashing", root=tmp_path / "index")
+    index.add(
+        [
+            Chunk(
+                chunk_id=QUALIFY,
+                doc_id="qualify",
+                tenant="duckdb",
+                text="QUALIFY filters the output of a window function. Use it after WINDOW.",
+                source_path="sql/qualify.md",
+                heading_path=("DuckDB", "QUALIFY"),
+            )
+        ]
+    )
+    index.save()
+    app = create_app(
+        provider_factory=lambda live: retrieval_demo_provider(),
+        trace_db=tmp_path / "t.db",
+        index_root=str(tmp_path / "index"),
+        corpus=str(tmp_path / "nocorpus"),
+        allow_live=False,
+        configs_dir=tmp_path / "configs",
+    )
+    body = TestClient(app).post(
+        "/api/query",
+        json={"question": "how do I filter a window function", "ts": "2026-07-23T00:00:00"},
+    ).json()
+    assert body["grounded"] is True
+    assert body["escalated"] is False
+    assert QUALIFY in body["citations"]["cited_ids"]
+    assert "QUALIFY" in body["answer"]

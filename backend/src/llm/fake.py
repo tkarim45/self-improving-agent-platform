@@ -90,3 +90,66 @@ def tool_turn(name: str, arguments: dict[str, Any], call_id: str = "t1") -> LLMR
         tool_calls=[ToolCall(id=call_id, name=name, arguments=arguments)],
         stop_reason="tool_use",
     )
+
+
+# --- retrieval-echo demo provider ------------------------------------------------------
+
+
+def _text_of(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(
+            b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return ""
+
+
+def _demo_turn(messages: list[dict[str, Any]]) -> str | LLMResponse:
+    """One adaptive turn for the API's dry mode: search first, then compose a cited answer
+    from whatever the REAL retriever returned, and wave the critic through.
+
+    Retrieval is genuine (real index, real ranking); only the prose is templated. That makes
+    the no-spend demo behave like the system instead of a canned refusal — grounded answers
+    with verifiable citations — while cost numbers stay fabricated-and-labelled.
+    """
+    import re
+
+    last = messages[-1]
+    last_content = last.get("content")
+
+    # A tool result came back -> compose the answer from the retrieved passages.
+    if isinstance(last_content, list) and any(
+        isinstance(b, dict) and b.get("type") == "tool_result" for b in last_content
+    ):
+        blob = "\n".join(
+            str(b.get("content", ""))
+            for b in last_content
+            if isinstance(b, dict) and b.get("type") == "tool_result"
+        )
+        hits = re.findall(r"\[([0-9a-f]{8,})\] ([^\n]+)\n([^\n]+)", blob)
+        if not hits:
+            return "The documentation does not appear to cover this."
+        lines = ["From the DuckDB documentation:", ""]
+        for cid, where, body in hits[:2]:
+            snippet = body.strip()
+            cut = snippet.rfind(". ", 0, 240)
+            snippet = snippet[: cut + 1] if cut > 60 else snippet[:240]
+            lines.append(f"- {where}: {snippet} [{cid}]")
+        return "\n".join(lines)
+
+    # Critic pass -> accept the draft.
+    if "Review the draft for grounding problems" in _text_of(last_content):
+        return "LGTM"
+
+    # Fresh question (or a revision request) -> search the docs for it.
+    question = next(
+        (_text_of(m.get("content")) for m in messages if m.get("role") == "user"), ""
+    )
+    return tool_turn("search_docs", {"query": question[:200], "k": 3})
+
+
+def retrieval_demo_provider(max_calls: int = 9) -> FakeProvider:
+    """The API's dry-mode provider: the adaptive demo turn, repeated up to the agent's
+    run-wide call ceiling so escalation/revision paths can never exhaust the script."""
+    return FakeProvider([_demo_turn] * max_calls)

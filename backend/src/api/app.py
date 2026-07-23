@@ -50,9 +50,12 @@ def _default_provider_factory(live: bool) -> LLMProvider:
         from src.llm.bedrock import BedrockProvider
 
         return BedrockProvider()
-    from src.llm.fake import FakeProvider
+    # Dry mode does REAL retrieval with templated prose (see retrieval_demo_provider):
+    # a canned refusal here made every demo answer ungrounded, which then escalated —
+    # a worst-case impression of a system whose whole point is grounding.
+    from src.llm.fake import retrieval_demo_provider
 
-    return FakeProvider(["The documentation does not cover this."] * 40)
+    return retrieval_demo_provider()
 
 
 def create_app(
