@@ -173,3 +173,11 @@ def test_demo_provider_grounds_answers_on_real_retrieval(tmp_path):
     assert body["escalated"] is False
     assert QUALIFY in body["citations"]["cited_ids"]
     assert "QUALIFY" in body["answer"]
+
+
+def test_tenant_slug_is_validated_against_path_traversal(client):
+    """tenant becomes a filesystem path (index_root/<tenant>) — a traversal attempt must
+    be rejected at the schema, never reach the loader."""
+    for bad in ["../../etc", "duck/db", "..", "DUCKDB", "a b", ""]:
+        r = client.post("/api/query", json={"question": "q", "tenant": bad})
+        assert r.status_code == 422, f"{bad!r} should be rejected, got {r.status_code}"

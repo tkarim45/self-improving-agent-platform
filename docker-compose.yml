@@ -1,0 +1,47 @@
+# The full local stack: FastAPI backend + Next.js frontend.
+#
+#   docker compose up --build
+#     -> frontend on http://localhost:3000, backend on http://localhost:8000
+#
+# The backend is DRY by default (fake provider, no spend). To allow real Bedrock:
+#   1. put AWS creds in backend/.env  (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION)
+#   2. set SIAP_ALLOW_LIVE=1 below (or in the shell), then toggle "live" in the chat UI.
+#
+# First boot fetches the DuckDB corpus and builds the index into the `siap-data` volume
+# (a few minutes); later boots reuse it.
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Flip to "1" only when you intend to spend on Bedrock. Empty = refuse live queries.
+      SIAP_ALLOW_LIVE: "${SIAP_ALLOW_LIVE:-}"
+      TENANT: duckdb
+    env_file:
+      # Optional — compose warns but continues if it's absent. Holds AWS creds for live mode.
+      - path: ./backend/.env
+        required: false
+    volumes:
+      - siap-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 240s
+      retries: 20
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Server-side rewrite target — the browser only ever talks to the frontend origin.
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  siap-data:

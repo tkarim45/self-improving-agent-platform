@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: api help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log sim sim-dry curve dev clean
+.PHONY: api help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log sim sim-dry curve dev stack clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -76,6 +76,9 @@ api: ## Run the M7 FastAPI backend on :8000 (dry-only; SIAP_ALLOW_LIVE=1 to allo
 dev: ## Run API + frontend hint
 	@echo "backend:  make api            (http://127.0.0.1:8000)"
 	@echo "frontend: cd ../frontend && npm run dev   (http://localhost:3000)"
+
+stack: ## Build + run the whole stack in Docker (frontend :3000, backend :8000)
+	cd .. && docker compose up --build
 
 clean:
 	rm -rf data/index .pytest_cache **/__pycache__

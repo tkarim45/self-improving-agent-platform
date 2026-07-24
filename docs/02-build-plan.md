@@ -390,11 +390,19 @@ optional** — the project stands alone on the laptop without it.
       Bedrock ($1.77): quality 92%→92%, cost 2.6¢→1.1¢/q, promotion at week 3 after two
       correct rejections (the second of which triggered the shadow sample that provided the
       evidence). Post-promotion cycles declined to churn. 225 tests.
-- [ ] **M7 Product surface — in progress (started 2026-07-23).** Repo restructured into
+- [x] **M7 Product surface — done 2026-07-24 (recording pending).** Repo restructured into
       `backend/` (the whole Python platform) + `frontend/` (Next.js). Landed: a FastAPI
       backend (`src/api` — query/traces/summary/promotions/sim/golden endpoints, dry-by-
-      default with a double opt-in for live spend, provider-injectable, 9 API tests) and a
-      Next.js chat UI (inline citation highlighting, tier/cost/grounding badges) + admin
-      console (summary cards, the M6 curve as two stacked single-axis panels, promotion
-      history, golden gate, recent traces). Remaining: docker-compose, multi-tenant
-      hardening, deployed demo + recording.
+      default with a double opt-in for live spend, provider-injectable) with a real-retrieval
+      dry-mode demo provider; a shadcn/ui (Base UI) chat surface (inline citation
+      highlighting with tooltips, one status-badge vocabulary, fabricated-run labelling,
+      dark/light) + admin console (summary, the M6 curve as two stacked single-axis panels
+      with the promotion annotated, promotion timeline, golden gate, trace table, skeletons
+      + empty states); **multi-tenant hardening** — the API tenant is slug-validated so it
+      can't traverse out of the data dir (index/corpus are per-tenant paths); and a
+      **docker-compose stack** (backend + frontend images, standalone Next output,
+      first-boot corpus fetch + ingest into a volume, dry-by-default with an env opt-in for
+      live). 12 API tests, 236 offline total. **Verified end to end** (both pages 200,
+      grounded proxied query, tenant traversal → 422, live → 403, zero console errors).
+      *Remaining: a 60–90s screen recording, and a public cloud deploy (the compose stack
+      runs the whole thing locally today).*

@@ -1,7 +1,11 @@
 # frontend — M7 product surface
 
-Next.js chat UI + admin console for the platform. Talks to the FastAPI backend
-(`../backend/src/api`) through a same-origin rewrite (see `next.config.ts`).
+Next.js chat UI + admin console for the platform, built on shadcn/ui (Base UI primitives).
+Talks to the FastAPI backend (`../backend/src/api`) through a same-origin rewrite (see
+`next.config.ts`), so the browser never makes a cross-origin call.
+
+The whole stack also runs with `docker compose up --build` from the repo root; the steps
+below are the from-source dev path.
 
 ```bash
 # 1. start the backend (from ../backend; dry-only unless SIAP_ALLOW_LIVE=1)

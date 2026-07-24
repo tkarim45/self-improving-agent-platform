@@ -5,13 +5,14 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M6 of 8 done, M7 in progress** (2026-07-23; M5 reranker
-fine-tune is a pending stage 2). Ingestion, a measured retrieval stack, a grounded tool-using
-agent, guardrails + tracing, a continuous eval harness with a CI gate, a closed
-self-improvement loop, and **the headline improvement curve** all run end to end against real
-AWS Bedrock; 234 offline tests pass. M7 has landed its first slice: a **FastAPI backend**
-(`backend/src/api`) and a **Next.js chat UI + admin console** (`frontend/`). Code lands
-milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** 🔨 In build — **M0–M7 of 8 done** (2026-07-24; M5 reranker fine-tune is a
+pending stage 2, and M7's screen recording + public deploy are the only open items).
+Ingestion, a measured retrieval stack, a grounded tool-using agent, guardrails + tracing, a
+continuous eval harness with a CI gate, a closed self-improvement loop, and **the headline
+improvement curve** all run end to end against real AWS Bedrock; 236 offline tests pass. The
+**product surface** ships too: a **FastAPI backend** (`backend/src/api`) and a **Next.js
+chat UI + admin console** (`frontend/`), runnable as a **`docker compose up` stack**. Code
+lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
 
 ## The headline
 
@@ -144,17 +145,32 @@ self-improving-agent-platform/
 │   ├── 01-architecture.md    # subsystems, data flow, interfaces
 │   ├── 02-build-plan.md      # ← phased, step-by-step milestones (build from here)
 │   └── 03-setup.md           # env, models, keys, first run
-├── backend/                  # the Python platform (everything M0–M6 measured)
+├── backend/                  # the Python platform (everything M0–M6 measured) + the API
 │   ├── src/                  # ingestion, retrieval, agent, guardrails, eval, flywheel, sim, api
-│   ├── tests/                # 234 offline tests — no network, no cloud spend
+│   ├── tests/                # 236 offline tests — no network, no cloud spend
 │   ├── eval/                 # labeled sets, golden cases, FINDINGS per milestone
 │   ├── configs/              # promotion log, active config, promoted router artifacts
 │   ├── data/                 # gitignored; fetched by scripts
-│   ├── Makefile · requirements.txt · pyproject.toml
-├── frontend/                 # Next.js chat UI + admin console (M7)
+│   ├── Dockerfile · docker-entrypoint.sh · Makefile · requirements.txt · pyproject.toml
+├── frontend/                 # Next.js chat UI + admin console (M7) + Dockerfile
+├── docker-compose.yml        # the full local stack: `docker compose up --build`
 ```
 
-## Quickstart (working today)
+## Quickstart — the whole stack in one command (Docker)
+
+```bash
+docker compose up --build
+# frontend -> http://localhost:3000   (chat + /dashboard)
+# backend  -> http://localhost:8000   (/api/health, /api/query, ...)
+```
+
+First boot fetches the DuckDB corpus and builds the index into a named volume (a few
+minutes); later boots reuse it. The backend is **dry by default** — the chat answers from
+the real index with templated prose and zero spend. To allow real Bedrock: put AWS creds in
+`backend/.env` and run `SIAP_ALLOW_LIVE=1 docker compose up`, then flip the **live** toggle
+in the chat.
+
+## Quickstart — from source (development)
 
 ```bash
 # 0. Everything Python runs from backend/
@@ -170,7 +186,7 @@ make corpus
 # 3. Build the hybrid index (BM25 + FAISS)
 make ingest
 
-# 4. Tests: 234 offline, no network, no cloud spend
+# 4. Tests: 236 offline, no network, no cloud spend
 make test
 
 # 5. Retrieval eval (add eval-full for the slow cross-encoder arms)

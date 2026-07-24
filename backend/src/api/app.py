@@ -20,6 +20,7 @@ Design lines:
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -27,13 +28,24 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agent.loop import AgentConfig
 from src.llm.base import LLMProvider
 from src.llm.pricing import CHEAP, PRICING_AS_OF, STRONG
 
 ProviderFactory = Callable[[bool], LLMProvider]
+
+# A tenant id becomes a filesystem path (index_root/<tenant>, corpus/<tenant>). Without this
+# gate a request could send tenant="../../etc" and walk out of the data dir. Lowercase slug
+# only — the same character class the ingest CLI accepts.
+_TENANT_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+
+
+def _valid_tenant(tenant: str) -> str:
+    if not _TENANT_RE.match(tenant):
+        raise ValueError("tenant must be a lowercase slug [a-z0-9_-], 1-64 chars")
+    return tenant
 
 
 class QueryRequest(BaseModel):
@@ -43,6 +55,11 @@ class QueryRequest(BaseModel):
     tenant: str = "duckdb"
     spend_limit_usd: float = Field(default=0.25, gt=0, le=1.0)
     ts: str | None = None  # tests inject; production stamps wall clock at the boundary
+
+    @field_validator("tenant")
+    @classmethod
+    def _check_tenant(cls, v: str) -> str:
+        return _valid_tenant(v)
 
 
 def _default_provider_factory(live: bool) -> LLMProvider:
