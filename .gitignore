@@ -88,3 +88,7 @@ traces/
 # Promoted flywheel artifacts are config, not data — a clone must be able to serve the
 # active config, so configs/ is exempted from the *.bin rule above.
 !backend/configs/candidates/*.bin
+
+# Fine-tuned reranker candidate model dirs (M5 stage 2) are large HF checkpoints — the
+# eval numbers live in configs/promotions.jsonl, so the model itself is never committed.
+backend/configs/candidates/reranker-*/

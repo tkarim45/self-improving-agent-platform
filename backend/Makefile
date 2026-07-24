@@ -1,7 +1,7 @@
 PY := $(HOME)/miniconda3/envs/personal/bin/python
 TENANT ?= duckdb
 
-.PHONY: api help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log sim sim-dry curve dev stack clean
+.PHONY: api help install corpus ingest test lint fmt eval eval-full agent-demo agent-baseline agent-dry traces golden golden-live flywheel-traffic flywheel-cycle flywheel-log reranker-cycle sim sim-dry curve dev stack clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -52,6 +52,9 @@ flywheel-cycle: ## One flywheel pass: mine -> train -> shadow -> canary -> decid
 
 flywheel-log: ## Promotion history + active config
 	$(PY) -m src.flywheel log
+
+reranker-cycle: ## M5 stage 2: mine triples -> fine-tune reranker on-device -> eval -> decide
+	SIAP_TRAIN_DEVICE=cpu $(PY) -m src.flywheel reranker-cycle --ts $$(date -u +%Y-%m-%dT%H:%M:%S)
 
 sim: ## 6 simulated weeks of traffic driving the flywheel unattended (SPENDS ~$2)
 	$(PY) -m src.sim run --weeks 6 --k 12 --live --fresh --state-dir data/sim

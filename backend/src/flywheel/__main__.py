@@ -119,6 +119,40 @@ def cmd_cycle(args) -> int:
     return 0
 
 
+def cmd_reranker_cycle(args) -> int:
+    from src.flywheel.reranker_cycle import run_reranker_cycle
+
+    log = PromotionLog()
+    result = run_reranker_cycle(
+        ts=args.ts,
+        tenant=args.tenant,
+        index_root=args.index_root,
+        corpus_path=args.corpus,
+        candidates_dir=Path("configs/candidates"),
+        epochs=args.epochs,
+        promotion_log=log,
+    )
+    out = {
+        "mined_triples": len(result.mining.triples),
+        "mined_pairs": result.mining.n_pairs,
+        "queries_used": result.mining.queries_used,
+        "queries_skipped": result.mining.queries_skipped,
+        "trained": result.trained,
+        "candidate": result.candidate_version,
+    }
+    if not result.trained:
+        out["reason"] = result.train_reason
+    elif result.decision is not None:
+        out["promote"] = result.decision.promote
+        out["reason"] = result.decision.reason
+        out["metrics"] = result.decision.metrics
+        out["lift"] = result.decision.lift
+    print(json.dumps(out, indent=2))
+    if result.decision and result.decision.promote:
+        print("active reranker:", json.dumps(log.active().get("reranker")))
+    return 0
+
+
 def cmd_log(args) -> int:
     log = PromotionLog()
     entries = log.entries()
@@ -169,6 +203,15 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--min-hours", type=float, default=12.0)
     c.add_argument("--ts", required=True, help="ISO timestamp for the log (caller-supplied)")
 
+    rr = sub.add_parser(
+        "reranker-cycle", help="M5 stage 2: mine triples -> fine-tune reranker -> eval -> decide"
+    )
+    rr.add_argument("--tenant", default="duckdb")
+    rr.add_argument("--index-root", default="data/index")
+    rr.add_argument("--corpus", default="", help="corpus path to build the link graph (optional)")
+    rr.add_argument("--epochs", type=int, default=2)
+    rr.add_argument("--ts", required=True, help="ISO timestamp for the log (caller-supplied)")
+
     line = sub.add_parser("log", help="promotion history + active config")  # noqa: F841
 
     r = sub.add_parser("rollback", help="restore the previous config")
@@ -180,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
         print("traffic spends money: pass --live to confirm, or --dry-run", file=sys.stderr)
         return 2
     return {"traffic": cmd_traffic, "mine": cmd_mine, "cycle": cmd_cycle,
+            "reranker-cycle": cmd_reranker_cycle,
             "log": cmd_log, "rollback": cmd_rollback}[args.cmd](args)
 
 

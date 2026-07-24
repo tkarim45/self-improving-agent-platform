@@ -5,14 +5,15 @@
 > closed evaluation-and-retraining loop — running on an Apple M1 (8 GB) laptop, with
 > heavy reasoning on the Claude API and the parts that improve fine-tuned on-device.
 
-**Status:** 🔨 In build — **M0–M7 of 8 done** (2026-07-24; M5 reranker fine-tune is a
-pending stage 2, and M7's screen recording + public deploy are the only open items).
-Ingestion, a measured retrieval stack, a grounded tool-using agent, guardrails + tracing, a
-continuous eval harness with a CI gate, a closed self-improvement loop, and **the headline
-improvement curve** all run end to end against real AWS Bedrock; 236 offline tests pass. The
-**product surface** ships too: a **FastAPI backend** (`backend/src/api`) and a **Next.js
-chat UI + admin console** (`frontend/`), runnable as a **`docker compose up` stack**. Code
-lands milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
+**Status:** ✅ **All 8 milestones (M0–M7) built and measured** (2026-07-24). The only open
+items are a 60–90s screen recording and an optional public cloud deploy — the whole system
+runs locally today. Ingestion, a measured retrieval stack, a grounded tool-using agent,
+guardrails + tracing, a continuous eval harness with a CI gate, a **closed self-improvement
+loop on both components** (router distillation + on-device reranker fine-tune), and **the
+headline improvement curve** all run end to end against real AWS Bedrock; 245 offline tests
+pass. The **product surface** ships too: a **FastAPI backend** (`backend/src/api`) and a
+**Next.js chat UI + admin console** (`frontend/`), runnable as a **`docker compose up`
+stack**. Built milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
 
 ## The headline
 
@@ -35,6 +36,15 @@ grounded**. The first promotion is honestly a *demotion* — a declared-degenera
 policy that kills the router waste M2 measured manually. `--router active` serves whatever
 the log last promoted; rollback is one command. Details in
 [`eval/flywheel/FINDINGS.md`](backend/eval/flywheel/FINDINGS.md).
+
+**Both components close the loop (M5 stage 2):** the reranker fine-tune runs the same
+machinery one component over — mine 68 (query, good, bad) triples off the real first stage,
+**fine-tune the cross-encoder on-device**, replay-shadow it against the base reranker,
+decide. It was **rejected, correctly**: the fine-tune lifted recall@3/@10 and nDCG but
+*regressed rank 1* (0.357 → 0.314) with MRR flat, so the dominance gate declined it. That
+extends the M1 result — fine-tuning **deepens** "the reranker never fixes rank 1" rather than
+breaking it; rank 1 is an agent problem, not a ranking one. Details in
+[`eval/flywheel/RERANKER_FINDINGS.md`](backend/eval/flywheel/RERANKER_FINDINGS.md).
 
 **Eval harness (M4):** online scorers on every trace, an **execution-based objective oracle**
 (SQL answers are checked by *running* them, not judged by a model), an LLM-judge calibrated
@@ -82,7 +92,7 @@ memory, so a retrieval failure shows up as a wrong answer instead of being maske
 
 Most RAG/agent demos are static — they answer the same way on day 100 as day 1. This
 platform closes the loop: every production trace is scored, failures are mined into new
-eval cases, a **small on-device reranker/router is re-fine-tuned (MLX-LoRA)**, the new
+eval cases, a **small reranker/router is re-fine-tuned on-device**, the new
 config is shadow-tested, and it's promoted **only on measured lift**. The headline
 deliverable is a **before/after quality curve proving the system improves with no human
 in the retrain loop, at bounded cost.**
@@ -147,7 +157,7 @@ self-improving-agent-platform/
 │   └── 03-setup.md           # env, models, keys, first run
 ├── backend/                  # the Python platform (everything M0–M6 measured) + the API
 │   ├── src/                  # ingestion, retrieval, agent, guardrails, eval, flywheel, sim, api
-│   ├── tests/                # 236 offline tests — no network, no cloud spend
+│   ├── tests/                # 245 offline tests — no network, no cloud spend
 │   ├── eval/                 # labeled sets, golden cases, FINDINGS per milestone
 │   ├── configs/              # promotion log, active config, promoted router artifacts
 │   ├── data/                 # gitignored; fetched by scripts
@@ -186,7 +196,7 @@ make corpus
 # 3. Build the hybrid index (BM25 + FAISS)
 make ingest
 
-# 4. Tests: 236 offline, no network, no cloud spend
+# 4. Tests: 245 offline, no network, no cloud spend
 make test
 
 # 5. Retrieval eval (add eval-full for the slow cross-encoder arms)

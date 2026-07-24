@@ -88,4 +88,12 @@ def get_reranker(name: str) -> Reranker:
         return IdentityReranker()
     if name == "lexical":
         return LexicalReranker()
+    if name == "active":
+        # Whatever the flywheel last promoted (configs/active.json), or identity if nothing
+        # has been promoted for the reranker component. Mirrors get_router("active").
+        from src.flywheel.promote import PromotionLog
+        from src.flywheel.reranker_cycle import active_reranker_name
+
+        resolved = active_reranker_name(PromotionLog())
+        return IdentityReranker() if resolved == "none" else CrossEncoderReranker(resolved)
     return CrossEncoderReranker(name)

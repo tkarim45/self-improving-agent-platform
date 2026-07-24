@@ -256,7 +256,8 @@ Steps:
 **Artifact:** a promotion log showing at least one automated retrain→shadow→promote cycle
 that improved held-out score.
 
-**STAGE 1 DONE 2026-07-23** (router distillation; MLX-LoRA reranker is stage 2).
+**STAGE 1 DONE 2026-07-23** (router distillation). **STAGE 2 DONE 2026-07-24** (reranker
+fine-tune, on-device — see the checklist entry and `eval/flywheel/RERANKER_FINDINGS.md`).
 [`eval/flywheel/FINDINGS.md`](../eval/flywheel/FINDINGS.md); the promotion log itself is
 [`configs/promotions.jsonl`](../configs/promotions.jsonl). Full loop, automated per cycle:
 traces → mine (failure modes, hash train/holdout split) → train → shadow (replay against
@@ -385,7 +386,20 @@ optional** — the project stands alone on the laptop without it.
       train → shadow → canary → promote, all automated. Cycle 1 rejected (no evidence),
       cycle 2 promoted (quality held, −25% cost, live-shadow-priced). First promotion = a
       declared-degenerate always-cheap policy: the flywheel killing M2's measured router
-      waste automatically. Rollback verified. Stage 2 (MLX reranker) pending. 216 tests.
+      waste automatically. Rollback verified. 216 tests.
+- [x] **M5 Flywheel (stage 2, reranker fine-tune) — done 2026-07-24.** The other half of the
+      loop: mine 68 (query, good-chunk, bad-chunk) triples off the real first stage,
+      **fine-tune the cross-encoder reranker on-device** (torch on Apple Silicon; the base is
+      22M ≪ the 1.5B ceiling — a recorded substitution for MLX-LoRA, which mlx-lm can't do
+      alongside transformers≥5), then replay-shadow it against the base reranker and decide.
+      **REJECTED, correctly:** the fine-tune lifted recall@3 (+0.072), recall@10 (+0.057) and
+      nDCG (+0.017) but *regressed rank-1* (0.357→0.314) with MRR flat, so the dominance gate
+      declined it. The finding extends M1: fine-tuning **deepens** the "reranker never fixes
+      rank 1" result rather than breaking it — rank 1 is an agent problem, not a ranking one.
+      Engineering: MPS trained at 208s/step (forced CPU); faiss+torch segfaulted the backward
+      pass (isolated training in a faiss-free subprocess). `configs/promotions.jsonl` has the
+      rejected cycle; full write-up in [`eval/flywheel/RERANKER_FINDINGS.md`](../eval/flywheel/RERANKER_FINDINGS.md).
+      29 tests (245 total). **The flywheel is now complete on both components.**
 - [x] **M6 Improvement curve — done 2026-07-23.** Six unattended simulated weeks on real
       Bedrock ($1.77): quality 92%→92%, cost 2.6¢→1.1¢/q, promotion at week 3 after two
       correct rejections (the second of which triggered the shadow sample that provided the

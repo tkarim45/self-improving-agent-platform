@@ -22,7 +22,12 @@ CONFIG_DIR = Path("configs")
 LOG_PATH = CONFIG_DIR / "promotions.jsonl"
 ACTIVE_PATH = CONFIG_DIR / "active.json"
 
-DEFAULT_ACTIVE = {"router": {"kind": "heuristic", "artifact": None, "version": "heuristic-v0"}}
+DEFAULT_ACTIVE = {
+    "router": {"kind": "heuristic", "artifact": None, "version": "heuristic-v0"},
+    # The reranker component (M5 stage 2). Default = the identity control arm (no rerank),
+    # which is what a rollback with no prior promotion restores to.
+    "reranker": {"kind": "identity", "artifact": None, "version": "identity-v0"},
+}
 
 
 @dataclass
