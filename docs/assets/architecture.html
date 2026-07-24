@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[PROJECT NAME] Architecture Diagram</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      margin-bottom: 2rem;
+    }
+    
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: #22d3ee;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+    
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    svg {
+      width: 100%;
+      min-width: 900px;
+      display: block;
+    }
+    
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    
+    .card h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .card ul {
+      list-style: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+    
+    .card li {
+      margin-bottom: 0.375rem;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #475569;
+      font-size: 0.75rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: auto;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .toolbar-toggle {
+      background: transparent;
+      border: none;
+      color: #475569;
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions {
+      display: none;
+      gap: 0.5rem;
+    }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.375rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .toolbar-actions button:hover {
+      background: rgba(51, 65, 85, 0.8);
+      color: white;
+      border-color: #475569;
+    }
+
+    @media print {
+      body { background: #020617; padding: 1rem; }
+      .toolbar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Self-Improving Agent Platform — Architecture</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">A closed evaluation-and-retraining loop over a grounded RAG agent — it measurably improves itself, unattended, at bounded cost.</p>
+    </div>
+    <div class="diagram-container">
+<svg viewBox="0 0 1280 910">
+<defs>
+<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#64748b" /></marker>
+<marker id="loop" markerWidth="11" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 11 4, 0 8" fill="#22d3ee" /></marker>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+</defs>
+<rect width="1280" height="910" fill="url(#grid)"/>
+<rect x="24" y="70" width="828" height="372" rx="12" fill="rgba(34,211,238,0.04)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="8,4"/>
+<text x="38" y="88" fill="#22d3ee" font-size="10" font-weight="600">① SERVE  ·  grounded plan→retrieve→tool→critic agent</text>
+<rect x="866" y="70" width="390" height="240" rx="12" fill="rgba(251,191,36,0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+<text x="880" y="88" fill="#fbbf24" font-size="10" font-weight="600">AWS BEDROCK  ·  legacy InvokeModel, temp 0</text>
+<rect x="24" y="468" width="1232" height="92" rx="12" fill="rgba(52,211,153,0.04)" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+<text x="38" y="486" fill="#34d399" font-size="10" font-weight="600">② OBSERVE &amp; EVALUATE  ·  every request traced + scored</text>
+<rect x="24" y="592" width="1232" height="232" rx="12" fill="rgba(251,146,60,0.04)" stroke="#fb923c" stroke-width="1" stroke-dasharray="8,4"/>
+<text x="38" y="610" fill="#fb923c" font-size="10" font-weight="600">③ SELF-IMPROVE  ·  the flywheel — mine → train (on-device) → shadow → canary → promote-on-lift</text>
+<rect x="452" y="205" width="405" height="232" rx="10" fill="rgba(251,113,133,0.03)" stroke="#fb7185" stroke-width="1" stroke-dasharray="8,4"/>
+<text x="466" y="223" fill="#fb7185" font-size="10" font-weight="600">Guardrails · redact · inject-block · unsafe-SQL</text>
+<line x1="215" y1="126" x2="250" y2="126" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="232" y="121" fill="#94a3b8" font-size="8.5" text-anchor="middle">query</text>
+<line x1="420" y1="126" x2="455" y2="126" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<line x1="625" y1="126" x2="660" y2="273" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="642" y="194" fill="#94a3b8" font-size="8.5" text-anchor="middle">/api/query</text>
+<line x1="215" y1="259" x2="45" y2="391" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<line x1="130" y1="422" x2="540" y2="360" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="335" y="403" fill="#94a3b8" font-size="8.5" text-anchor="middle">content-addressed</text>
+<path d="M 625 402 C 664 402, 664 318, 702 318" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="664" y="354" fill="#94a3b8" font-size="8.5" text-anchor="middle">retrieve top-k</text>
+<path d="M 455 259 C 579 259, 579 228, 702 228" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="579" y="238" fill="#94a3b8" font-size="8.5" text-anchor="middle">pick tier</text>
+<path d="M 788 228 C 848 228, 848 157, 910 157" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="848" y="188" fill="#94a3b8" font-size="8.5" text-anchor="middle">call model</text>
+<line x1="1037" y1="126" x2="1073" y2="126" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead)"/>
+<text x="1055" y="121" fill="#94a3b8" font-size="8.5" text-anchor="middle">escalate</text>
+<path d="M 830 273 C 766 273, 766 346, 702 346" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="766" y="306" fill="#94a3b8" font-size="8.5" text-anchor="middle">run SQL</text>
+<line x1="745" y1="318" x2="745" y2="414" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="745" y="368" fill="#94a3b8" font-size="8.5" text-anchor="middle">ground</text>
+<line x1="625" y1="402" x2="250" y2="402" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<path d="M 702 318 C 621 318, 621 495, 540 495" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="621" y="408" fill="#94a3b8" font-size="8.5" text-anchor="middle">trace</text>
+<path d="M 745 476 C 664 476, 664 495, 582 495" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<line x1="625" y1="526" x2="660" y2="526" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="642" y="521" fill="#94a3b8" font-size="8.5" text-anchor="middle">sampled</text>
+<line x1="830" y1="526" x2="867" y2="526" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="848" y="521" fill="#94a3b8" font-size="8.5" text-anchor="middle">run SQL</text>
+<line x1="1037" y1="526" x2="1073" y2="526" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<path d="M 540 557 C 356 557, 356 628, 172 628" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="356" y="570" fill="#94a3b8" font-size="8.5" text-anchor="middle">low-score traces → mine</text>
+<path d="M 1158 557 C 1055 557, 1055 760, 952 760" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="1055" y="660" fill="#94a3b8" font-size="8.5" text-anchor="middle">CI gate</text>
+<line x1="215" y1="659" x2="250" y2="659" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="232" y="654" fill="#94a3b8" font-size="8.5" text-anchor="middle">failure modes</text>
+<path d="M 172 690 C 314 690, 314 659, 455 659" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="314" y="686" fill="#94a3b8" font-size="8.5" text-anchor="middle">triples</text>
+<line x1="420" y1="659" x2="660" y2="659" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<path d="M 625 659 C 664 659, 664 690, 702 690" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<line x1="830" y1="659" x2="867" y2="659" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="848" y="654" fill="#94a3b8" font-size="8.5" text-anchor="middle">replay</text>
+<line x1="1037" y1="659" x2="1073" y2="659" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<path d="M 1158 690 C 789 690, 789 791, 420 791" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<text x="789" y="742" fill="#94a3b8" font-size="8.5" text-anchor="middle">on lift</text>
+<path d="M 1200 690 C 870 690, 870 760, 540 760" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<rect x="45" y="95" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="45" y="95" width="170" height="62" rx="7" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="130" y="115" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Users / Query</text>
+<text x="130" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">issue-thread wording</text>
+<rect x="250" y="95" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="250" y="95" width="170" height="62" rx="7" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+<text x="335" y="115" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Next.js UI</text>
+<text x="335" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">chat + admin console</text>
+<text x="335" y="144" fill="#94a3b8" font-size="9" text-anchor="middle">shadcn/ui</text>
+<rect x="455" y="95" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="455" y="95" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="540" y="115" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">FastAPI</text>
+<text x="540" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">dry-by-default</text>
+<text x="540" y="144" fill="#94a3b8" font-size="9" text-anchor="middle">live opt-in</text>
+<rect x="867" y="95" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="867" y="95" width="170" height="62" rx="7" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+<text x="952" y="115" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Haiku 4.5</text>
+<text x="952" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">cheap tier</text>
+<rect x="1073" y="95" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="1073" y="95" width="170" height="62" rx="7" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+<text x="1158" y="115" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Sonnet 4.6</text>
+<text x="1158" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">strong tier</text>
+<rect x="45" y="228" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="45" y="228" width="170" height="62" rx="7" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="130" y="248" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">DuckDB Docs</text>
+<text x="130" y="264" fill="#94a3b8" font-size="9" text-anchor="middle">411 pages</text>
+<text x="130" y="277" fill="#94a3b8" font-size="9" text-anchor="middle">sha-pinned</text>
+<rect x="455" y="228" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="455" y="228" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="540" y="248" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Cost-aware Router</text>
+<text x="540" y="264" fill="#94a3b8" font-size="9" text-anchor="middle">learned · active</text>
+<rect x="660" y="228" width="170" height="90" rx="7" fill="#0f172a"/>
+<rect x="660" y="228" width="170" height="90" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="745" y="248" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Agent Loop</text>
+<text x="745" y="264" fill="#94a3b8" font-size="9" text-anchor="middle">plan→retrieve→tool→critic</text>
+<rect x="45" y="360" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="45" y="360" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="130" y="380" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Heading Chunker</text>
+<text x="130" y="396" fill="#94a3b8" font-size="9" text-anchor="middle">code-fence aware</text>
+<rect x="250" y="360" width="170" height="84" rx="7" fill="#0f172a"/>
+<rect x="250" y="360" width="170" height="84" rx="7" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="335" y="380" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Reranker</text>
+<text x="335" y="396" fill="#94a3b8" font-size="9" text-anchor="middle">cross-encoder</text>
+<rect x="455" y="360" width="170" height="84" rx="7" fill="#0f172a"/>
+<rect x="455" y="360" width="170" height="84" rx="7" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="540" y="380" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Hybrid Index</text>
+<text x="540" y="396" fill="#94a3b8" font-size="9" text-anchor="middle">BM25 + FAISS dense</text>
+<text x="540" y="409" fill="#94a3b8" font-size="9" text-anchor="middle">+ link graph</text>
+<rect x="660" y="346" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="660" y="346" width="170" height="62" rx="7" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+<text x="745" y="366" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Sandboxed DuckDB</text>
+<text x="745" y="382" fill="#94a3b8" font-size="9" text-anchor="middle">agent verifies own SQL</text>
+<rect x="660" y="414" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="660" y="414" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="745" y="434" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Citation Grounding</text>
+<text x="745" y="450" fill="#94a3b8" font-size="9" text-anchor="middle">check vs retrieved</text>
+<rect x="455" y="495" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="455" y="495" width="170" height="62" rx="7" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="540" y="515" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">SQLite Trace Store</text>
+<text x="540" y="531" fill="#94a3b8" font-size="9" text-anchor="middle">prompt/cost/latency/scores</text>
+<rect x="660" y="495" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="660" y="495" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="745" y="515" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Eval Harness</text>
+<text x="745" y="531" fill="#94a3b8" font-size="9" text-anchor="middle">online scorers</text>
+<rect x="867" y="495" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="867" y="495" width="170" height="62" rx="7" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="952" y="515" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Execution Oracle</text>
+<text x="952" y="531" fill="#94a3b8" font-size="9" text-anchor="middle">run the SQL = truth</text>
+<rect x="1073" y="495" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="1073" y="495" width="170" height="62" rx="7" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+<text x="1158" y="515" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">LLM Judge</text>
+<text x="1158" y="531" fill="#94a3b8" font-size="9" text-anchor="middle">G-Eval CoT</text>
+<rect x="45" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="45" y="628" width="170" height="62" rx="7" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1.5"/>
+<text x="130" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Failure Mining</text>
+<text x="130" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">ok/routing/retrieval</text>
+<text x="130" y="677" fill="#94a3b8" font-size="9" text-anchor="middle">reasoning/exhausted</text>
+<rect x="250" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="250" y="628" width="170" height="62" rx="7" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+<text x="335" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Router Distill</text>
+<text x="335" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">TF-IDF + LogReg</text>
+<rect x="455" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="455" y="628" width="170" height="62" rx="7" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="540" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Reranker Fine-tune</text>
+<text x="540" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">on-device · MLX/torch</text>
+<rect x="660" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="660" y="628" width="170" height="62" rx="7" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+<text x="745" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Replay Shadow</text>
+<text x="745" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">free · deterministic</text>
+<rect x="867" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="867" y="628" width="170" height="62" rx="7" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+<text x="952" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Exec-Oracle Canary</text>
+<text x="952" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">reward-hack guard</text>
+<rect x="1073" y="628" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="1073" y="628" width="170" height="62" rx="7" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+<text x="1158" y="648" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Promote-on-Lift</text>
+<text x="1158" y="664" fill="#94a3b8" font-size="9" text-anchor="middle">dominance + rollback</text>
+<rect x="250" y="760" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="250" y="760" width="170" height="62" rx="7" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+<text x="335" y="780" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Active Config</text>
+<text x="335" y="796" fill="#94a3b8" font-size="9" text-anchor="middle">promotions.jsonl</text>
+<rect x="440" y="760" width="200" height="62" rx="7" fill="#0f172a"/>
+<rect x="440" y="760" width="200" height="62" rx="7" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+<text x="540" y="780" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Improvement Curve</text>
+<text x="540" y="796" fill="#94a3b8" font-size="9" text-anchor="middle">quality 92%→92%</text>
+<text x="540" y="809" fill="#94a3b8" font-size="9" text-anchor="middle">cost 2.6¢→1.1¢/query</text>
+<rect x="867" y="760" width="170" height="62" rx="7" fill="#0f172a"/>
+<rect x="867" y="760" width="170" height="62" rx="7" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+<text x="952" y="780" fill="#fff" font-size="11" font-weight="600" text-anchor="middle">Golden Gate · CI</text>
+<text x="952" y="796" fill="#94a3b8" font-size="9" text-anchor="middle">92% green → 67% red</text>
+<path d="M 250 791 C 160 791, 345 259, 455 259" fill="none" stroke="#22d3ee" stroke-width="2.2" stroke-dasharray="2,3" marker-end="url(#loop)"/>
+<text x="322" y="214" fill="#22d3ee" font-size="9.5" font-weight="600" text-anchor="middle">closed loop · --router active</text>
+<text x="40" y="878" fill="#fff" font-size="10" font-weight="600">Legend</text>
+<rect x="106" y="869" width="15" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+<text x="126" y="878" fill="#94a3b8" font-size="8.5">Frontend/UI</text>
+<rect x="238" y="869" width="15" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+<text x="258" y="878" fill="#94a3b8" font-size="8.5">Backend</text>
+<rect x="370" y="869" width="15" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+<text x="390" y="878" fill="#94a3b8" font-size="8.5">Data/Index</text>
+<rect x="502" y="869" width="15" height="10" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
+<text x="522" y="878" fill="#94a3b8" font-size="8.5">Model/Cloud</text>
+<rect x="634" y="869" width="15" height="10" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1"/>
+<text x="654" y="878" fill="#94a3b8" font-size="8.5">Safety/Gate</text>
+<rect x="766" y="869" width="15" height="10" rx="2" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1"/>
+<text x="786" y="878" fill="#94a3b8" font-size="8.5">Flywheel</text>
+<line x1="898" y1="874" x2="916" y2="874" stroke="#22d3ee" stroke-width="2" stroke-dasharray="2,3"/>
+<text x="922" y="878" fill="#94a3b8" font-size="8.5">Closed loop</text>
+</svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header"><div class="card-dot emerald"></div><h3>Serve — the agent</h3></div>
+        <ul>
+          <li>• plan→retrieve→tool→critic on real AWS Bedrock</li>
+          <li>• hybrid retrieval: BM25 + FAISS dense + link graph</li>
+          <li>• sandboxed DuckDB tool verifies its own SQL</li>
+          <li>• inline citations checked vs what was retrieved</li>
+          <li>• cost-aware router (Haiku ↔ Sonnet) + escalation</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot rose"></div><h3>Observe & evaluate</h3></div>
+        <ul>
+          <li>• guardrails: secret/PII redaction, injection block</li>
+          <li>• every request traced to SQLite (prompt→cost→scores)</li>
+          <li>• execution oracle: SQL answers scored by running them</li>
+          <li>• LLM judge calibrated against the oracle (9/9)</li>
+          <li>• golden gate flips 92% green → 67% red on a bad prompt</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot cyan"></div><h3>Self-improve — the flywheel</h3></div>
+        <ul>
+          <li>• mine failures → retrain router + reranker on-device</li>
+          <li>• replay shadow → exec-oracle canary → promote-on-lift</li>
+          <li>• 6 unattended weeks: quality 92%→92%, cost −54%, $1.77</li>
+          <li>• promoted on measured lift after two correct rejections</li>
+          <li>• one-command rollback · 245 offline tests</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer">
+      self-improving-agent-platform · capstone #1 · M0–M7 · Claude on AWS Bedrock · FAISS + rank-bm25 · MLX/torch on-device · FastAPI + Next.js
+    </p>
+  </div>
+
+<script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'diagram.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('diagram.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

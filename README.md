@@ -15,6 +15,17 @@ pass. The **product surface** ships too: a **FastAPI backend** (`backend/src/api
 **Next.js chat UI + admin console** (`frontend/`), runnable as a **`docker compose up`
 stack**. Built milestone by milestone (see [`docs/02-build-plan.md`](docs/02-build-plan.md)).
 
+## Architecture at a glance
+
+![architecture](docs/assets/architecture.png)
+
+Three planes — **① Serve** a grounded plan→retrieve→tool→critic agent, **② Observe &
+evaluate** every request (trace → execution oracle → judge → CI gate), **③ Self-improve**
+via the closed flywheel (mine → retrain on-device → shadow → canary → promote-on-lift). The
+dashed cyan line is the loop: a promoted config flows back into the live router. Open
+[`docs/assets/architecture.html`](docs/assets/architecture.html) for the interactive version
+(export to PNG/PDF from the ⋯ menu).
+
 ## The headline
 
 ![the improvement curve](backend/eval/sim/curve.png)
